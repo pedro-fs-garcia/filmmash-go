@@ -1,0 +1,10 @@
+{{ template "base" . }}
+
+{{ define "content" }}
+
+    <h1>{{ .Title }} ({{ .Year }})</h1>
+    <h2>{{ .DirectorId }}</h2>
+    <img src="https://image.tmdb.org/t/p/w500{{ .ImagePath }}" alt="">
+    <h3>{{ .Rating }}</h3>
+
+{{ end }}

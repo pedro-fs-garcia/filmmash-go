@@ -1,0 +1,50 @@
+{{ define "base" }}
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <script src="https://unpkg.com/htmx.org@1.9.12"></script>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Courier+Prime:ital,wght@0,400;0,700;1,400;1,700&display=swap"
+        rel="stylesheet">
+
+    <style>
+        .courier-prime-regular {
+            font-family: "Courier Prime", monospace;
+            font-weight: 400;
+            font-style: normal;
+        }
+
+        .courier-prime-bold {
+            font-family: "Courier Prime", monospace;
+            font-weight: 700;
+            font-style: normal;
+        }
+
+        .courier-prime-regular-italic {
+            font-family: "Courier Prime", monospace;
+            font-weight: 400;
+            font-style: italic;
+        }
+
+        .courier-prime-bold-italic {
+            font-family: "Courier Prime", monospace;
+            font-weight: 700;
+            font-style: italic;
+        }
+    </style>
+    <title>Filmash</title>
+</head>
+
+<body class="courier-prime-regular">
+    {{ template "content" . }}
+</body>
+
+</html>
+
+{{ end }}
