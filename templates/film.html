@@ -3,7 +3,7 @@
 {{ define "content" }}
 
     <h1>{{ .Title }} ({{ .Year }})</h1>
-    <h2>{{ .DirectorId }}</h2>
+    <h2>{{ .Director.Name }}</h2>
     <img src="https://image.tmdb.org/t/p/w500{{ .ImagePath }}" alt="">
     <h3>{{ .Rating }}</h3>
 

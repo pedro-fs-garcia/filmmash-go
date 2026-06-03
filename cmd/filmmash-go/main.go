@@ -1,7 +1,10 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
+	"filmmash/internal/config"
+	"filmmash/internal/database"
 	"filmmash/internal/tmdb"
 	"fmt"
 	"log"
@@ -20,9 +23,30 @@ func main() {
 }
 
 func run() error {
+	ctx := context.Background()
+	cfg := config.Load()
+
+	dsn := fmt.Sprintf(
+		"postgres://%s:%s@%s:%s/%s?sslmode=disable",
+		cfg.PostgresUser,
+		cfg.PostgresPassword,
+		cfg.PostgresHost,
+		cfg.PostgresPort,
+		cfg.PgDbName,
+	)
+
+	pool, err := database.Pool(ctx, dsn)
+	if err != nil {
+		panic(err)
+	}
+
+	service := Service{pool: pool}
+	handler := AppHandler{service: &service}
+
 	router := chi.NewRouter()
-	registerHandlers(router)
-	RegisterUiHandlers(router)
+	router.Route("/ui", func(r chi.Router) {
+		r.Get("/film/{id}", handler.FilmHandler)
+	})
 
 	httpServer := &http.Server{Addr: "localhost:8000", Handler: router}
 
@@ -47,23 +71,4 @@ func temp(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(data)
-}
-
-func registerHandlers(router *chi.Mux) {
-	router.Get("/", HomeHandler)
-	router.Get("/health", HandleHealth)
-	router.Get("/tmdb", temp)
-
-	router.Route("/api", func(r chi.Router) {
-
-	})
-
-	router.Get("/{id}", IdHandler)
-}
-
-func RegisterUiHandlers(router *chi.Mux) {
-	router.Route("/ui", func(r chi.Router) {
-		r.Get("/", HomeHandler)
-		r.Get("/film/{id}", FilmHandler)
-	})
 }
