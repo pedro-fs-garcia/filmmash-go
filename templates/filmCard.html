@@ -1,8 +1,9 @@
 {{ define "filmCard" }}
 
-    <h1>{{ .Title }} ({{ .Year }})</h1>
-    <h2>{{ .Director.Name }}</h2>
+    <h2>{{ .Title }}</h2> 
+    <h2>({{ .Year }})</h2>
     <img id="{{ .ImagePath }}" src="https://image.tmdb.org/t/p/w300{{ .ImagePath }}" alt="" hx-preserve>
-    <h3>{{ .Rating }}</h3>
+    <h3 class="film-director">{{ .Director.Name }}</h3>
+    <h3 class="film-rating">{{ .Rating }}</h3>
 
 {{ end }}

@@ -37,17 +37,403 @@
             font-weight: 700;
             font-style: italic;
         }
+
+        /* ===========================================================
+           FilmMash — Golden Age of Hollywood / Film-Noir aesthetic
+           =========================================================== */
+        :root {
+            --noir-black: #0b0b0c;
+            --noir-panel: #16130d;
+            --noir-panel-2: #1f1a12;
+            --ivory: #f3ead3;
+            --ivory-dim: #c9bfa6;
+            --gold: #c9a24b;
+            --gold-bright: #e7c66a;
+            --crimson: #7a1818;
+            --line: rgba(201, 162, 75, 0.35);
+
+            --card-max: 360px;
+            --gap-max: 5rem;
+            --arena-max: calc(var(--card-max) * 2 + var(--gap-max));
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        html {
+            background: var(--noir-black);
+        }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            color: var(--ivory);
+            background:
+                radial-gradient(ellipse at 50% 0%, rgba(201, 162, 75, 0.10), transparent 60%),
+                radial-gradient(ellipse at 50% 120%, rgba(122, 24, 24, 0.18), transparent 55%),
+                var(--noir-black);
+            padding: 2.5rem 1.25rem 1rem;
+        }
+
+        /* Faint vignette + film-grain overlay across the whole page */
+        body::before {
+            content: "";
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            z-index: 1;
+            box-shadow: inset 0 0 220px 60px rgba(0, 0, 0, 0.85);
+        }
+
+        body::after {
+            content: "";
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            z-index: 2;
+            opacity: 0.05;
+            mix-blend-mode: overlay;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+        }
+
+        body > * {
+            position: relative;
+            z-index: 3;
+        }
+
+        /* ---- Marquee title --------------------------------------- */
+        h1 {
+            text-align: center;
+            color: var(--gold-bright);
+            margin: 0.2em 0 0.1em;
+            text-shadow: 0 2px 0 #000;
+        }
+
+        /* ---- Intro / title-card copy ----------------------------- */
+        body > p {
+            /* Acompanha exatamente a largura da arena de duelo */
+            max-width: min(95vw, var(--arena-max));
+            margin-inline: auto;
+            text-align: justify;
+            color: var(--ivory-dim);
+            font-size: clamp(0.85rem, 0.75rem + 0.5vw, 1rem);
+            line-height: 1.5;
+        }
+
+        /* ---- The duel: two contenders side by side --------------- */
+        #duel {
+            display: flex;
+            flex-wrap: nowrap;
+            justify-content: center;
+            align-items: stretch;
+            gap: clamp(0.6rem, 4vw, var(--gap-max));
+            position: relative;
+            max-width: min(95vw, var(--arena-max));
+            margin: 0 auto;
+        }
+
+        /* "VS" medallion floating in the gap */
+        #duel::before {
+            content: "VS";
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 5;
+            font-weight: 700;
+            font-size: 1.1rem;
+            letter-spacing: 0.05em;
+            color: var(--noir-black);
+            background: radial-gradient(circle at 30% 30%, var(--gold-bright), var(--gold));
+            width: 3.2rem;
+            height: 3.2rem;
+            border-radius: 50%;
+            display: grid;
+            place-items: center;
+            box-shadow: 0 0 0 4px var(--noir-black), 0 0 0 5px var(--line), 0 6px 18px rgba(0, 0, 0, 0.6);
+        }
+
+        /* Each contender is a direct child div of #duel (from duelCard) */
+        #duel > div {
+            flex: 1 1 0;
+            min-width: 0;
+            max-width: var(--card-max);
+            overflow-wrap: break-word;
+            container-type: inline-size;
+            cursor: pointer;
+            background: linear-gradient(180deg, var(--noir-panel-2), var(--noir-panel));
+            padding: clamp(0.6rem, 2.5vw, 1.25rem) clamp(0.6rem, 2.5vw, 1.25rem) clamp(0.8rem, 3vw, 1.6rem);
+            border: 1px solid var(--line);
+            outline: 1px solid rgba(0, 0, 0, 0.6);
+            outline-offset: -7px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.55);
+            text-align: center;
+            transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
+        }
+
+        #duel > div:hover,
+        #duel > div:focus-within {
+            transform: translateY(-8px);
+            border-color: var(--gold-bright);
+            box-shadow: 0 0 28px rgba(201, 162, 75, 0.35), 0 16px 40px rgba(0, 0, 0, 0.7);
+        }
+
+        /* ---- Film card contents ---------------------------------- */
+        #duel > div h2 {
+            color: var(--ivory-dim);
+            margin: 0 0 0.4em;
+            font-size: clamp(0.85rem, 9cqi, 1.5rem);
+            text-shadow: 0 1px 0 #000;
+        }
+
+        /* Posters: classic sepia, blooming to full color on hover */
+        img {
+            max-width: 100%;
+            height: auto;
+            display: block;
+            margin: 0 auto;
+            border: 1px solid rgba(0, 0, 0, 0.8);
+            box-shadow: 0 8px 22px rgba(0, 0, 0, 0.6);
+            filter: sepia(0.55) contrast(1.05) brightness(0.92) saturate(0.85);
+            transition: filter 0.35s ease;
+        }
+
+        #duel > div:hover img,
+        #duel > div:focus-within img {
+            filter: sepia(0) contrast(1.05) brightness(1) saturate(1.05);
+        }
+
+        /* Nome do diretor — crédito discreto sob o pôster */
+        .film-director {
+            margin: 0.6em 0 0.2em;
+            color: var(--ivory-dim);
+            font-size: clamp(0.7rem, 5.5cqi, 1.05rem);
+        }
+
+        /* Nota — selo de aprovação dourado */
+        .film-rating {
+            display: inline-block;
+            margin: 0.4em auto 0;
+            padding: 0.25em 0.9em;
+            color: var(--gold-bright);
+            font-size: clamp(0.7rem, 5.5cqi, 1.05rem);
+            border: 1px solid var(--line);
+            border-radius: 2px;
+        }
+
+        /* Standalone film / detail pages */
+        body > h2 {
+            text-align: center;
+            color: var(--ivory-dim);
+        }
+
+        /* ===================== Hamburger menu ===================== */
+        /* CSS-only drawer (checkbox hack). The actual <input> is the
+           transparent click target sitting on top of the burger icon. */
+        .nav-toggle {
+            position: fixed;
+            top: 1rem;
+            left: 1rem;
+            width: 2.6rem;
+            height: 2.6rem;
+            margin: 0;
+            opacity: 0;
+            cursor: pointer;
+            z-index: 21;
+        }
+
+        .nav-burger {
+            position: fixed;
+            top: 1rem;
+            left: 1rem;
+            z-index: 20;
+            width: 2.6rem;
+            height: 2.6rem;
+            display: grid;
+            align-content: center;
+            justify-items: center;
+            gap: 5px;
+            background: linear-gradient(180deg, var(--noir-panel-2), var(--noir-panel));
+            border: 1px solid var(--line);
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .nav-burger span {
+            display: block;
+            width: 1.4rem;
+            height: 2px;
+            background: var(--gold-bright);
+            transition: transform 0.25s ease, opacity 0.25s ease;
+        }
+
+        .nav-toggle:focus-visible ~ .nav-burger {
+            outline: 2px solid var(--gold-bright);
+            outline-offset: 2px;
+        }
+
+        .nav-overlay {
+            position: fixed;
+            inset: 0;
+            z-index: 18;
+            background: rgba(0, 0, 0, 0.55);
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s ease;
+            cursor: pointer;
+        }
+
+        .side-nav {
+            position: fixed;
+            top: 0;
+            left: 0;
+            z-index: 19;
+            height: 100vh;
+            width: min(80vw, 280px);
+            padding: 4.75rem 1.25rem 1.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+            background: linear-gradient(180deg, var(--noir-panel-2), var(--noir-black));
+            border-right: 1px solid var(--line);
+            box-shadow: 6px 0 26px rgba(0, 0, 0, 0.6);
+            transform: translateX(-100%);
+            transition: transform 0.3s ease;
+        }
+
+        .side-nav .nav-heading {
+            margin: 0 0 0.5rem;
+            color: var(--gold-bright);
+            font-size: 0.8rem;
+            letter-spacing: 0.25em;
+            text-transform: uppercase;
+            border-bottom: 1px solid var(--line);
+            padding-bottom: 0.5rem;
+        }
+
+        .side-nav a {
+            color: var(--ivory);
+            text-decoration: none;
+            padding: 0.7rem 0.6rem;
+            border-bottom: 1px solid var(--line);
+            transition: color 0.2s ease, padding-left 0.2s ease;
+        }
+
+        .side-nav a:hover {
+            color: var(--gold-bright);
+            padding-left: 1rem;
+        }
+
+        /* --- Open state --- */
+        .nav-toggle:checked ~ .side-nav {
+            transform: translateX(0);
+        }
+
+        .nav-toggle:checked ~ .nav-overlay {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .nav-toggle:checked ~ .nav-burger span:nth-child(1) {
+            transform: translateY(7px) rotate(45deg);
+        }
+
+        .nav-toggle:checked ~ .nav-burger span:nth-child(2) {
+            opacity: 0;
+        }
+
+        .nav-toggle:checked ~ .nav-burger span:nth-child(3) {
+            transform: translateY(-7px) rotate(-45deg);
+        }
+
+        /* ===================== Films list page ==================== */
+        #film-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: clamp(0.75rem, 2vw, 1.5rem);
+            max-width: min(95vw, 1100px);
+            margin: 1.5rem auto 0;
+        }
+
+        .film-list-item {
+            display: block;
+            container-type: inline-size;
+            text-decoration: none;
+            color: inherit;
+            text-align: center;
+            background: linear-gradient(180deg, var(--noir-panel-2), var(--noir-panel));
+            padding: clamp(0.6rem, 4cqi, 1.1rem);
+            border: 1px solid var(--line);
+            outline: 1px solid rgba(0, 0, 0, 0.6);
+            outline-offset: -7px;
+            box-shadow: 0 8px 22px rgba(0, 0, 0, 0.5);
+            transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .film-list-item:hover {
+            transform: translateY(-5px);
+            border-color: var(--gold-bright);
+            box-shadow: 0 0 22px rgba(201, 162, 75, 0.3), 0 14px 32px rgba(0, 0, 0, 0.6);
+        }
+
+        .film-list-item h2 {
+            color: var(--ivory-dim);
+            margin: 0 0 0.4em;
+            font-size: clamp(0.8rem, 9cqi, 1.3rem);
+            text-shadow: 0 1px 0 #000;
+        }
+
+        .film-list-item:hover img {
+            filter: sepia(0) contrast(1.05) brightness(1) saturate(1.05);
+        }
+
+        /* ---- Footer ---------------------------------------------- */
+        footer {
+            position: relative;
+            z-index: 3;
+            margin-top: 3rem;
+            text-align: center;
+            color: var(--ivory-dim);
+            border-top: 1px solid var(--line);
+            padding-top: 1rem;
+        }
+
+        @media (max-width: 640px) {
+            #duel::before {
+                display: none;
+            }
+        }
+
+        /* Wider screens: widen the gap so the VS medallion fits between cards */
+        @media (min-width: 641px) {
+            #duel {
+                gap: clamp(3.5rem, 6vw, var(--gap-max));
+            }
+        }
     </style>
     <title>Filmash</title>
 </head>
 
 <body class="courier-prime-regular">
-    {{ template "content" . }}
-</body>
+    <input type="checkbox" id="nav-toggle" class="nav-toggle" aria-label="Abrir menu">
+    <label for="nav-toggle" class="nav-burger" aria-hidden="true">
+        <span></span>
+        <span></span>
+        <span></span>
+    </label>
+    <label for="nav-toggle" class="nav-overlay"></label>
+    <nav class="side-nav">
+        <a href="/ui/">FilmMash</a>
+        <a href="/ui/films">Films list</a>
+    </nav>
 
-<footer>
-    <p>&copy; 2026</p>
-</footer>
+    {{ template "content" . }}
+
+    <footer>
+        <p>&copy; 2026</p>
+    </footer>
+</body>
 
 </html>
 
