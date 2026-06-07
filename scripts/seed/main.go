@@ -33,7 +33,7 @@ func main() {
 
 	client := tmdb.NewTmdbClient()
 	total := 0
-	for page := 24; page <= 250; page++ {
+	for page := 250; page <= 500; page++ {
 		fmt.Printf("Downloading movies from tmdb, page %d", page)
 		movies, err := client.GetTopRated(page)
 		if err != nil {

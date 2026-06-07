@@ -5,7 +5,10 @@ import (
 	"encoding/json"
 	"filmmash/internal/config"
 	"filmmash/internal/database"
+	"filmmash/internal/duel"
+	"filmmash/internal/film"
 	"filmmash/internal/tmdb"
+	"filmmash/internal/vote"
 	"fmt"
 	"log"
 	"net"
@@ -16,6 +19,7 @@ import (
 )
 
 func main() {
+	log.SetFlags(log.LstdFlags | log.Lshortfile)
 	if err := run(); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
@@ -40,12 +44,24 @@ func run() error {
 		panic(err)
 	}
 
-	service := Service{pool: pool}
-	handler := AppHandler{service: &service}
+	filmService := film.NewService(pool)
+	duelService := duel.NewService(pool, filmService)
+	voteService := vote.NewService(pool, filmService, duelService)
+
+	handler := NewAppHandler(
+		filmService,
+		duelService,
+		voteService,
+	)
 
 	router := chi.NewRouter()
 	router.Route("/ui", func(r chi.Router) {
+		r.Get("/", handler.DuelHandler)
 		r.Get("/film/{id}", handler.FilmHandler)
+		r.Post("/duel/{duel_id}/result", handler.DuelResultHandler)
+	})
+
+	router.Route("/api", func(r chi.Router) {
 	})
 
 	httpServer := &http.Server{Addr: "localhost:8000", Handler: router}

@@ -1,0 +1,8 @@
+{{ define "filmCard" }}
+
+    <h1>{{ .Title }} ({{ .Year }})</h1>
+    <h2>{{ .Director.Name }}</h2>
+    <img id="{{ .ImagePath }}" src="https://image.tmdb.org/t/p/w300{{ .ImagePath }}" alt="" hx-preserve>
+    <h3>{{ .Rating }}</h3>
+
+{{ end }}
