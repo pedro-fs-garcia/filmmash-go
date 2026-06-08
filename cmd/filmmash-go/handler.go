@@ -57,7 +57,7 @@ func (h *AppHandler) FilmHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *AppHandler) DuelHandler(w http.ResponseWriter, r *http.Request) {
-	duel, err := h.duelService.CreateDuel(r.Context())
+	duel, err := h.duelService.CreateRandomDuel(r.Context())
 	if err != nil {
 		log.Println(err)
 		http.Error(w, "Could not fetch the films for a duel.", http.StatusExpectationFailed)
