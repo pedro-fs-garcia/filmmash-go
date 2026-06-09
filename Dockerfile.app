@@ -8,7 +8,9 @@ COPY . .
 RUN CGO_ENABLED=0 go build -ldflags="-s -w" -o /app ./cmd/filmmash-go
 
 FROM golang:1.26.4-alpine
-COPY --from=build /app /app
+WORKDIR /app
+COPY --from=build /app ./app
+COPY --from=build /src/templates ./templates
 VOLUME ["/logs"]
-EXPOSE 8000
-ENTRYPOINT ["/app"]
+EXPOSE 8080
+ENTRYPOINT ["./app"]

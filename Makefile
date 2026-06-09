@@ -1,12 +1,12 @@
 docker-build:
-	docker build -t my-app .
+	docker build -t filmmash-go .
 
 docker-run:
-	docker rm my-app
-	docker run --env-file .env -p 8000:8080 --name my-app -v ./logs:/logs my-app
+	docker rm filmmash-go
+	docker run --env-file .env -p 8000:8080 --name filmmash-go -v filmmash_logs:/logs filmmash-go
 
 docker-shell:
-	docker exec -it my-app sh
+	docker exec -it filmmash-go sh
 
 docker-stop:
-	docker stop my-app
+	docker stop filmmash-go
