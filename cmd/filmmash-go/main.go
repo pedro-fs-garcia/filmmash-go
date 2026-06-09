@@ -64,14 +64,17 @@ func run() error {
 	router.Route("/api", func(r chi.Router) {
 	})
 
-	httpServer := &http.Server{Addr: "localhost:8000", Handler: router}
+	httpServer := &http.Server{
+		Addr:    fmt.Sprintf(":%s", cfg.Port),
+		Handler: router,
+	}
 
 	ln, err := net.Listen("tcp", httpServer.Addr)
 	if err != nil {
 		return fmt.Errorf("failed to listen on %s: %w", httpServer.Addr, err)
 	}
 
-	log.Printf("server listening on http://%s\n", httpServer.Addr)
+	log.Printf("server listening on port %s\n", httpServer.Addr)
 
 	if err := httpServer.Serve(ln); err != nil && err != http.ErrServerClosed {
 		return err

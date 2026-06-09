@@ -1,11 +1,14 @@
 package config
 
 import (
+	"os"
+
 	"github.com/caarlos0/env/v11"
 	"github.com/joho/godotenv"
 )
 
 type Config struct {
+	Port             string `env:"PORT"              envDefault:"8080"`
 	PostgresUser     string `env:"POSTGRES_USER"     envDefault:"postgres"`
 	PostgresPassword string `env:"POSTGRES_PASSWORD" envDefault:"postgres"`
 	PostgresHost     string `env:"POSTGRES_HOST"     envDefault:"localhost"`
@@ -17,7 +20,7 @@ type Config struct {
 
 func loadDotenvFile() {
 	err := godotenv.Load()
-	if err != nil {
+	if err != nil && !os.IsNotExist(err) {
 		panic(err)
 	}
 }
