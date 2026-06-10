@@ -7,11 +7,33 @@ import (
 )
 
 type repository struct {
-	pool *pgxpool.Pool
+	db *pgxpool.Pool
 }
 
 func NewRepository(pool *pgxpool.Pool) *repository {
-	return &repository{pool: pool}
+	return &repository{db: pool}
+}
+
+func (r *repository) Insert(ctx context.Context, f *Film) error {
+	query := `
+	WITH director AS (
+		INSERT INTO directors (id, name)
+		VALUES ($1, $2)
+		RETURNING id AS director_id
+	)
+	INSERT INTO films (id, title, release_year, director_id, image_path)
+	SELECT $3, $4, $5, director_id, $6 FROM director
+	RETURNING id;
+	`
+	return r.db.QueryRow(ctx,
+		query,
+		f.Director.Id,
+		f.Director.Name,
+		f.Id,
+		f.Title,
+		f.Year,
+		f.ImagePath,
+	).Scan(&f.Id)
 }
 
 func (r *repository) GetFilm(ctx context.Context, id int) (Film, error) {
@@ -21,7 +43,7 @@ func (r *repository) GetFilm(ctx context.Context, id int) (Film, error) {
 	JOIN directors ON films.director_id = directors.id
 	WHERE films.id = $1`
 
-	rows, err := r.pool.Query(ctx, query, id)
+	rows, err := r.db.Query(ctx, query, id)
 	if err != nil {
 		return Film{}, err
 	}
@@ -58,7 +80,7 @@ func (r *repository) GetRandomFilm(ctx context.Context) (Film, error) {
 	var film_id, release_year, director_id int
 	var rating float64
 	var title, image_path, director_name string
-	err := r.pool.QueryRow(ctx, query).Scan(&film_id, &title, &release_year, &image_path, &rating, &director_id, &director_name)
+	err := r.db.QueryRow(ctx, query).Scan(&film_id, &title, &release_year, &image_path, &rating, &director_id, &director_name)
 	if err != nil {
 		return Film{}, err
 	}

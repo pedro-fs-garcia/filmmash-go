@@ -5,15 +5,23 @@ import (
 	"database/sql"
 	"log"
 
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 	_ "github.com/jackc/pgx/v5/stdlib"
 )
 
-func OpenDB(dataSourceName string) *sql.DB {
+type DBConn interface {
+	Query(ctx context.Context, query string, args ...any) (pgx.Rows, error)
+	QueryRow(ctx context.Context, query string, args ...any) pgx.Row
+	Exec(ctx context.Context, query string, args ...any) (pgconn.CommandTag, error)
+}
+
+func OpenDB(dataSourceName string) (*sql.DB, error) {
 	db, err := sql.Open("pgx", dataSourceName)
 	if err != nil {
 		log.Fatal(err)
-		panic(err)
+		return nil, err
 	}
 
 	if err := db.Ping(); err != nil {
@@ -21,7 +29,7 @@ func OpenDB(dataSourceName string) *sql.DB {
 		panic(err)
 	}
 
-	return db
+	return db, nil
 }
 
 func Pool(ctx context.Context, dataSourceName string) (*pgxpool.Pool, error) {

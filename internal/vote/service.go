@@ -6,7 +6,6 @@ import (
 	"filmmash/internal/film"
 	"fmt"
 	"log"
-	"math"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -57,8 +56,9 @@ func (s *Service) RegisterVote(ctx context.Context, duelId uuid.UUID, winnerId i
 		return Vote{}, err
 	}
 
-	var newWinnerRating, newLoserRating float64
-	CalculateRatings(winner.Rating, loser.Rating, &newWinnerRating, &newLoserRating)
+	// TODO: Use real current ratings from DB
+	// TODO: Register new ratings on DB
+	newWinnerRating, newLoserRating := film.CalculateRatings(winner.Rating, loser.Rating)
 
 	vote := Vote{
 		DuelId:            duelId,
@@ -73,14 +73,4 @@ func (s *Service) RegisterVote(ctx context.Context, duelId uuid.UUID, winnerId i
 		return Vote{}, err
 	}
 	return vote, nil
-}
-
-func CalculateRatings(winnerRating, loserRating float64, newWinnerRating, newLoserRating *float64) {
-	// TODO: Use real current ratings from DB
-	// TODO: Register new ratings on DB
-	const K = 20
-	Ea := 1 / (1 + math.Pow(10, (winnerRating-loserRating)/400))
-	Eb := 1 / (1 + math.Pow(10, (loserRating-winnerRating)/400))
-	*newWinnerRating = winnerRating + K*(1-Ea)
-	*newLoserRating = loserRating + K*(0-Eb)
 }

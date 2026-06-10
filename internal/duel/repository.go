@@ -2,6 +2,7 @@ package duel
 
 import (
 	"context"
+	"filmmash/internal/database"
 	"filmmash/internal/film"
 	"fmt"
 	"log"
@@ -12,7 +13,7 @@ import (
 )
 
 type repository struct {
-	db DBConn
+	db database.DBConn
 }
 
 func newRepository(pool *pgxpool.Pool) *repository {
