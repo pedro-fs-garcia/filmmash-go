@@ -2,12 +2,10 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"filmmash/internal/config"
 	"filmmash/internal/database"
 	"filmmash/internal/duel"
 	"filmmash/internal/film"
-	"filmmash/internal/tmdb"
 	"filmmash/internal/vote"
 	"fmt"
 	"log"
@@ -81,13 +79,4 @@ func run() error {
 	}
 
 	return nil
-}
-
-func temp(w http.ResponseWriter, r *http.Request) {
-	data, err := tmdb.NewTmdbClient().GetTopRated(50)
-	if err != nil {
-		log.Println(err)
-	}
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(data)
 }

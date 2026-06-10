@@ -31,7 +31,7 @@ func main() {
 		panic(err)
 	}
 
-	client := tmdb.NewTmdbClient()
+	client := tmdb.NewTmdbClient("https://api.themoviedb.org/3", cfg.TmdbApitoken)
 	total := 0
 	for page := 1; page <= 3; page++ {
 		fmt.Printf("Downloading movies from tmdb, page %d", page)

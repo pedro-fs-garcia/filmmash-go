@@ -14,10 +14,10 @@ type TmdbClient struct {
 	http        *http.Client
 }
 
-func NewTmdbClient() *TmdbClient {
+func NewTmdbClient(baseUrl string, accessToken string) *TmdbClient {
 	return &TmdbClient{
-		baseURL:     "https://api.themoviedb.org/3",
-		accessToken: "eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiI0NzU4NTFhN2I5ZGFlNjIwZTE4N2RlOGE3N2ZiZGFiYyIsIm5iZiI6MTczNzIxMjUxMS42NjUsInN1YiI6IjY3OGJjMjVmMDhkZDcwOGJiOTZkZTAwNSIsInNjb3BlcyI6WyJhcGlfcmVhZCJdLCJ2ZXJzaW9uIjoxfQ.rabzs1fy3QwieG2IGs9Yh-d1z9DmJguI8rRV2evv770",
+		baseURL:     baseUrl,
+		accessToken: accessToken,
 		http: &http.Client{
 			Timeout: 10 * time.Second,
 		},
