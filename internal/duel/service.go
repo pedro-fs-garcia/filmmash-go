@@ -56,26 +56,5 @@ func (s *Service) CreateRandomDuel(ctx context.Context) (Duel, error) {
 }
 
 func (s *Service) ComposeDuel(ctx context.Context, winnerId int) (Duel, error) {
-	// TODO:
-	// this function makes 3 calls to the database
-	// this should be optimized to be done in one
-
-	winner, err := s.filmService.GetFilm(ctx, winnerId)
-	if err != nil {
-		return Duel{}, err
-	}
-
-	filmB, err := s.filmService.GetRandomFilm(ctx)
-	if err != nil {
-		return Duel{}, err
-	}
-	duel := Duel{
-		FilmA: &winner,
-		FilmB: &filmB,
-	}
-	err = s.repo.Insert(ctx, &duel)
-	if err != nil {
-		return Duel{}, err
-	}
-	return duel, nil
+	return s.repo.ComposeDuel(ctx, winnerId)
 }

@@ -2,6 +2,7 @@ package duel
 
 import (
 	"context"
+	"encoding/json"
 	"filmmash/internal/database"
 	"filmmash/internal/film"
 	"fmt"
@@ -10,6 +11,16 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
+
+type FilmJSON struct {
+	Id           int     `json:"id"`
+	Title        string  `json:"title"`
+	Year         int     `json:"release_year"`
+	ImagePath    string  `json:"image_path"`
+	Rating       float64 `json:"rating"`
+	DirectorId   int     `json:"director_id"`
+	DirectorName string  `json:"director_name"`
+}
 
 type repository struct {
 	pool *pgxpool.Pool
@@ -139,7 +150,8 @@ func (r *repository) SelectRandomFilms(ctx context.Context) ([2]film.Film, error
 	JOIN directors ON films.director_id = directors.id
 	ORDER BY RANDOM() LIMIT 2`
 
-	filRows, err := r.pool.Query(ctx, query)
+	q := database.ExtractTx(ctx, r.pool)
+	filRows, err := q.Query(ctx, query)
 	if err != nil {
 		log.Println(err)
 		return [2]film.Film{}, err
@@ -179,4 +191,74 @@ func (r *repository) SelectRandomFilms(ctx context.Context) ([2]film.Film, error
 		return [2]film.Film{}, fmt.Errorf("not enough films for a duel: got %d", i)
 	}
 	return films, nil
+}
+
+func (r *repository) ComposeDuel(ctx context.Context, winnerId int) (Duel, error) {
+	query := `
+	WITH random_id AS (
+		SELECT id FROM films
+		ORDER BY RANDOM() LIMIT 1
+	),
+	inserted_duel AS (
+		INSERT INTO duels (film_a_id, film_b_id)
+		SELECT $1, id FROM random_id
+		RETURNING id AS duel_id, film_a_id, film_b_id
+	),
+	target_films AS (
+		SELECT f.id, f.title, f.release_year, f.image_path, f.rating, d.id AS director_id, d.name AS director_name
+		FROM films f
+		JOIN directors d ON f.director_id = d.id
+		WHERE f.id = $1 OR f.id = (SELECT film_b_id FROM inserted_duel)
+	)
+	SELECT i.duel_id,
+		(SELECT row_to_json(t.*) FROM target_films t WHERE t.id = i.film_a_id) AS film_a_data,
+		(SELECT row_to_json(t.*) FROM target_films t WHERE t.id = i.film_b_id) AS film_b_data
+	FROM inserted_duel i
+	`
+
+	var duelId uuid.UUID
+	var filmAJSON, filmBJSON []byte
+
+	q := database.ExtractTx(ctx, r.pool)
+	err := q.QueryRow(ctx, query, winnerId).Scan(&duelId, &filmAJSON, &filmBJSON)
+	if err != nil {
+		log.Println(err)
+		return Duel{}, err
+	}
+
+	var fa, fb FilmJSON
+	if err = json.Unmarshal(filmAJSON, &fa); err != nil {
+		log.Println(err)
+		return Duel{}, err
+	}
+	if err = json.Unmarshal(filmBJSON, &fb); err != nil {
+		log.Println(err)
+		return Duel{}, err
+	}
+
+	return Duel{
+		Id: duelId,
+		FilmA: &film.Film{
+			Id:        fa.Id,
+			Title:     fa.Title,
+			Year:      fa.Year,
+			ImagePath: fa.ImagePath,
+			Rating:    fa.Rating,
+			Director: film.Director{
+				Id:   fa.DirectorId,
+				Name: fa.DirectorName,
+			},
+		},
+		FilmB: &film.Film{
+			Id:        fb.Id,
+			Title:     fb.Title,
+			Year:      fb.Year,
+			ImagePath: fb.ImagePath,
+			Rating:    fb.Rating,
+			Director: film.Director{
+				Id:   fb.DirectorId,
+				Name: fb.DirectorName,
+			},
+		},
+	}, nil
 }
