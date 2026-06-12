@@ -2,7 +2,6 @@ package duel
 
 import (
 	"context"
-	"encoding/json"
 	"filmmash/internal/database"
 	"filmmash/internal/film"
 	"fmt"
@@ -11,16 +10,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
-
-type FilmJSON struct {
-	Id           int     `json:"id"`
-	Title        string  `json:"title"`
-	Year         int     `json:"release_year"`
-	ImagePath    string  `json:"image_path"`
-	Rating       float64 `json:"rating"`
-	DirectorId   int     `json:"director_id"`
-	DirectorName string  `json:"director_name"`
-}
 
 type repository struct {
 	pool *pgxpool.Pool
@@ -211,54 +200,30 @@ func (r *repository) ComposeDuel(ctx context.Context, winnerId int) (Duel, error
 		WHERE f.id = $1 OR f.id = (SELECT film_b_id FROM inserted_duel)
 	)
 	SELECT i.duel_id,
-		(SELECT row_to_json(t.*) FROM target_films t WHERE t.id = i.film_a_id) AS film_a_data,
-		(SELECT row_to_json(t.*) FROM target_films t WHERE t.id = i.film_b_id) AS film_b_data
+		fa.id, fa.title, fa.release_year, fa.image_path, fa.rating, da.id, da.name,
+		fb.id, fb.title, fb.release_year, fb.image_path, fb.rating, db.id, db.name
 	FROM inserted_duel i
+	JOIN films fa ON fa.id = i.film_a_id JOIN directors da ON da.id = fa.director_id
+	JOIN films fb ON fb.id = i.film_b_id JOIN directors db ON db.id = fb.director_id
 	`
 
 	var duelId uuid.UUID
-	var filmAJSON, filmBJSON []byte
+	var fa, fb film.Film
 
 	q := database.ExtractTx(ctx, r.pool)
-	err := q.QueryRow(ctx, query, winnerId).Scan(&duelId, &filmAJSON, &filmBJSON)
+	err := q.QueryRow(ctx, query, winnerId).Scan(
+		&duelId,
+		&fa.Id, &fa.Title, &fa.Year, &fa.ImagePath, &fa.Rating, &fa.Director.Id, &fa.Director.Name,
+		&fb.Id, &fb.Title, &fb.Year, &fb.ImagePath, &fb.Rating, &fb.Director.Id, &fb.Director.Name,
+	)
 	if err != nil {
 		log.Println(err)
 		return Duel{}, err
 	}
 
-	var fa, fb FilmJSON
-	if err = json.Unmarshal(filmAJSON, &fa); err != nil {
-		log.Println(err)
-		return Duel{}, err
-	}
-	if err = json.Unmarshal(filmBJSON, &fb); err != nil {
-		log.Println(err)
-		return Duel{}, err
-	}
-
 	return Duel{
-		Id: duelId,
-		FilmA: &film.Film{
-			Id:        fa.Id,
-			Title:     fa.Title,
-			Year:      fa.Year,
-			ImagePath: fa.ImagePath,
-			Rating:    fa.Rating,
-			Director: film.Director{
-				Id:   fa.DirectorId,
-				Name: fa.DirectorName,
-			},
-		},
-		FilmB: &film.Film{
-			Id:        fb.Id,
-			Title:     fb.Title,
-			Year:      fb.Year,
-			ImagePath: fb.ImagePath,
-			Rating:    fb.Rating,
-			Director: film.Director{
-				Id:   fb.DirectorId,
-				Name: fb.DirectorName,
-			},
-		},
+		Id:    duelId,
+		FilmA: &fa,
+		FilmB: &fb,
 	}, nil
 }
