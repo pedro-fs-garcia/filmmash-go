@@ -5,6 +5,7 @@ import (
 	"filmmash/internal/duel"
 	"filmmash/internal/film"
 	"filmmash/internal/vote"
+	"filmmash/internal/web"
 	"fmt"
 	"html/template"
 	"log"
@@ -25,6 +26,25 @@ type AppHandler struct {
 	filmService    *film.Service
 	duelService    *duel.Service
 	registerVoteUc *vote.RegisterVoteUC
+}
+
+var templateCache = make(map[string]*template.Template)
+
+func init() {
+	templateCache["filmPage"] = template.Must(template.ParseFS(web.TemplatesFS,
+		"base.html",
+		"film.html",
+	))
+	templateCache["duelPage"] = template.Must(template.ParseFS(web.TemplatesFS,
+		"base.html",
+		"index.html",
+		"duelCard.html",
+		"filmCard.html",
+	))
+	templateCache["duelCard"] = template.Must(template.ParseFS(web.TemplatesFS,
+		"duelCard.html",
+		"filmCard.html",
+	))
 }
 
 func NewAppHandler(fs *film.Service, ds *duel.Service, rvuc *vote.RegisterVoteUC) *AppHandler {
@@ -48,9 +68,8 @@ func (h *AppHandler) FilmHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Error on GetFilm service", http.StatusInternalServerError)
 		return
 	}
-	// json.NewEncoder(w).Encode(film)
-	t := template.Must(template.ParseFiles("templates/base.html", "templates/film.html"))
-	err = t.ExecuteTemplate(w, "base", film)
+
+	err = templateCache["filmPage"].ExecuteTemplate(w, "base", film)
 	if err != nil {
 		http.Error(w, "Error mounting html file", http.StatusInternalServerError)
 		return
@@ -65,8 +84,7 @@ func (h *AppHandler) DuelHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	t := template.Must(template.ParseFiles("templates/base.html", "templates/index.html", "templates/duelCard.html", "templates/filmCard.html"))
-	err = t.ExecuteTemplate(w, "base", duel)
+	err = templateCache["duelPage"].ExecuteTemplate(w, "base", duel)
 	if err != nil {
 		log.Println(err)
 		http.Error(w, "Error mounting HTML file", http.StatusInternalServerError)
@@ -75,10 +93,11 @@ func (h *AppHandler) DuelHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *AppHandler) DuelResultHandler(w http.ResponseWriter, r *http.Request) {
-
 	duelId, err := uuid.Parse(chi.URLParam(r, "duel_id"))
 	if err != nil {
 		log.Println(err)
+		http.Error(w, "Invalid duel could not be parsed", http.StatusBadRequest)
+		return
 	}
 	winnerId, err := strconv.Atoi(r.FormValue("winner"))
 	if err != nil {
@@ -101,12 +120,12 @@ func (h *AppHandler) DuelResultHandler(w http.ResponseWriter, r *http.Request) {
 
 	duel, err := h.duelService.ComposeDuel(r.Context(), winnerId)
 	if err != nil {
-		log.Println()
+		log.Println(err)
 		http.Error(w, "Could not fetch the films for a duel.", http.StatusExpectationFailed)
 		return
 	}
-	t := template.Must(template.ParseFiles("templates/duelCard.html", "templates/filmCard.html"))
-	err = t.ExecuteTemplate(w, "duelCard", duel)
+
+	err = templateCache["duelCard"].ExecuteTemplate(w, "duelCard", duel)
 	if err != nil {
 		log.Println(err)
 		http.Error(w, "Error mounting HTML file", http.StatusInternalServerError)
