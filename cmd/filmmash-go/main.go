@@ -44,12 +44,14 @@ func run() error {
 
 	filmService := film.NewService(pool)
 	duelService := duel.NewService(pool, filmService)
-	voteService := vote.NewService(pool, filmService, duelService)
+
+	voteRepo := vote.NewRepository(pool)
+	registerVoteUC := vote.NewRegisterVoteUC(voteRepo, filmService, duelService)
 
 	handler := NewAppHandler(
 		filmService,
 		duelService,
-		voteService,
+		registerVoteUC,
 	)
 
 	router := chi.NewRouter()

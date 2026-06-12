@@ -3,7 +3,6 @@ package testdb
 import (
 	"context"
 	"errors"
-	"filmmash/internal/database"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -14,7 +13,6 @@ import (
 	"github.com/caarlos0/env/v11"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/joho/godotenv"
-	"github.com/pressly/goose/v3"
 )
 
 type config struct {
@@ -62,14 +60,6 @@ func New(ctx context.Context) (*pgxpool.Pool, func(), error) {
 	if !strings.Contains(cfg.DatabaseURL, "test") {
 		return nil, nil, fmt.Errorf("refusing to run: DATABASE_URL %q is not a test database", cfg.DatabaseURL)
 	}
-
-	db, err := database.OpenDB(cfg.DatabaseURL)
-	goose.SetDialect("postgres")
-	if err := goose.Up(db, filepath.Join(root, "migrations")); err != nil {
-		db.Close()
-		return nil, nil, fmt.Errorf("Error applying migrations: %w", err)
-	}
-	db.Close()
 
 	pool, err := pgxpool.New(ctx, cfg.DatabaseURL)
 	if err != nil {

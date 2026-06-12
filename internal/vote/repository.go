@@ -2,6 +2,7 @@ package vote
 
 import (
 	"context"
+	"filmmash/internal/database"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -20,7 +21,8 @@ func (r *repository) InsertVote(ctx context.Context, vote *Vote) error {
 	VALUES ($1, $2, $3, $4, $5) 
 	RETURNING id
 	`
-	return r.pool.QueryRow(ctx, query,
+	q := database.ExtractTx(ctx, r.pool)
+	return q.QueryRow(ctx, query,
 		vote.DuelId,
 		vote.WinnerID, vote.LoserId, vote.WinnerRatingAfter, vote.LoserRatingAfter,
 	).Scan(&vote.Id)

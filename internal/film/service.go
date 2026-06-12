@@ -2,19 +2,21 @@ package film
 
 import (
 	"context"
+	"filmmash/internal/database"
 	"math"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type Service struct {
-	pool *pgxpool.Pool
-	repo *repository
+	repo      *repository
+	txManager *database.TxManager
 }
 
 func NewService(pool *pgxpool.Pool) *Service {
-	repo := repository{db: pool}
-	return &Service{pool: pool, repo: &repo}
+	repo := repository{pool: pool}
+	tm := database.NewTxManager(pool)
+	return &Service{repo: &repo, txManager: tm}
 }
 
 func (s *Service) GetFilm(ctx context.Context, id int) (Film, error) {

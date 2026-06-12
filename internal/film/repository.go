@@ -2,16 +2,17 @@ package film
 
 import (
 	"context"
+	"filmmash/internal/database"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type repository struct {
-	db *pgxpool.Pool
+	pool *pgxpool.Pool
 }
 
 func NewRepository(pool *pgxpool.Pool) *repository {
-	return &repository{db: pool}
+	return &repository{pool: pool}
 }
 
 func (r *repository) Insert(ctx context.Context, f *Film) error {
@@ -25,7 +26,8 @@ func (r *repository) Insert(ctx context.Context, f *Film) error {
 	SELECT $3, $4, $5, director_id, $6 FROM director
 	RETURNING id;
 	`
-	return r.db.QueryRow(ctx,
+	q := database.ExtractTx(ctx, r.pool)
+	return q.QueryRow(ctx,
 		query,
 		f.Director.Id,
 		f.Director.Name,
@@ -43,7 +45,8 @@ func (r *repository) GetFilm(ctx context.Context, id int) (Film, error) {
 	JOIN directors ON films.director_id = directors.id
 	WHERE films.id = $1`
 
-	rows, err := r.db.Query(ctx, query, id)
+	q := database.ExtractTx(ctx, r.pool)
+	rows, err := q.Query(ctx, query, id)
 	if err != nil {
 		return Film{}, err
 	}
@@ -77,10 +80,11 @@ func (r *repository) GetRandomFilm(ctx context.Context) (Film, error) {
 	JOIN directors ON films.director_id = directors.id
 	ORDER BY RANDOM() LIMIT 1`
 
+	q := database.ExtractTx(ctx, r.pool)
 	var film_id, release_year, director_id int
 	var rating float64
 	var title, image_path, director_name string
-	err := r.db.QueryRow(ctx, query).Scan(&film_id, &title, &release_year, &image_path, &rating, &director_id, &director_name)
+	err := q.QueryRow(ctx, query).Scan(&film_id, &title, &release_year, &image_path, &rating, &director_id, &director_name)
 	if err != nil {
 		return Film{}, err
 	}

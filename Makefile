@@ -10,3 +10,12 @@ docker-shell:
 
 docker-stop:
 	docker stop filmmash-go
+
+migrate:
+	goose up
+
+migrate-test-db:
+	goose up -env=".env.test"
+
+test:
+	go test ./...

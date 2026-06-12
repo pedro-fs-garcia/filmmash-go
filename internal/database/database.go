@@ -17,6 +17,70 @@ type DBConn interface {
 	Exec(ctx context.Context, query string, args ...any) (pgconn.CommandTag, error)
 }
 
+type txKey struct{}
+
+func ExtractTx(ctx context.Context, pool *pgxpool.Pool) DBConn {
+	tx, ok := ctx.Value(txKey{}).(pgx.Tx)
+	if ok {
+		return tx
+	}
+	return pool
+}
+
+func InjectTx(ctx context.Context, tx pgx.Tx) context.Context {
+	return context.WithValue(ctx, txKey{}, tx)
+}
+
+type TxManager struct {
+	pool *pgxpool.Pool
+}
+
+func NewTxManager(pool *pgxpool.Pool) *TxManager {
+	return &TxManager{pool: pool}
+}
+
+func (tm *TxManager) ExecTx(ctx context.Context, fn func(ctx context.Context) error) error {
+	tx, err := tm.pool.Begin(ctx)
+	if err != nil {
+		return err
+	}
+
+	defer func() {
+		if p := recover(); p != nil {
+			tx.Rollback(ctx)
+			panic(p)
+		} else if err != nil {
+			tx.Rollback(ctx)
+		} else {
+			err = tx.Commit(ctx)
+		}
+	}()
+	txCtx := context.WithValue(ctx, txKey{}, tx)
+	err = fn(txCtx)
+	return err
+}
+
+func (tm *TxManager) Begin(ctx context.Context) (pgx.Tx, error) {
+	return tm.pool.Begin(ctx)
+}
+
+func NewTx(ctx context.Context, pool *pgxpool.Pool) (pgx.Tx, error) {
+	return pool.Begin(ctx)
+}
+
+func WithTx(ctx context.Context, pool *pgxpool.Pool, fn func(tx pgx.Tx) error) error {
+	tx, err := pool.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx)
+
+	if err = fn(tx); err != nil {
+		return err
+	}
+	return tx.Commit(ctx)
+}
+
 func OpenDB(dataSourceName string) (*sql.DB, error) {
 	db, err := sql.Open("pgx", dataSourceName)
 	if err != nil {
@@ -33,6 +97,10 @@ func OpenDB(dataSourceName string) (*sql.DB, error) {
 }
 
 func Pool(ctx context.Context, dataSourceName string) (*pgxpool.Pool, error) {
-	pool, err := pgxpool.New(ctx, dataSourceName)
-	return pool, err
+	cfg, err := pgxpool.ParseConfig(dataSourceName)
+	if err != nil {
+		return nil, err
+	}
+	cfg.MinConns = 1
+	return pgxpool.NewWithConfig(ctx, cfg)
 }

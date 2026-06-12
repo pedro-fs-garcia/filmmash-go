@@ -2,6 +2,7 @@ package duel
 
 import (
 	"context"
+	"filmmash/internal/database"
 	"filmmash/internal/film"
 	"log"
 
@@ -10,14 +11,15 @@ import (
 )
 
 type Service struct {
-	pool        *pgxpool.Pool
 	repo        *repository
+	txManager   *database.TxManager
 	filmService *film.Service
 }
 
 func NewService(pool *pgxpool.Pool, filmService *film.Service) *Service {
 	repo := newRepository(pool)
-	return &Service{pool: pool, repo: repo, filmService: filmService}
+	txManager := database.NewTxManager(pool)
+	return &Service{repo: repo, txManager: txManager, filmService: filmService}
 }
 
 func (s *Service) GetById(ctx context.Context, id uuid.UUID) (Duel, error) {
@@ -29,36 +31,27 @@ func (s *Service) GetDuelRatings(ctx context.Context, id uuid.UUID) ([2]FilmRati
 }
 
 func (s *Service) CreateRandomDuel(ctx context.Context) (Duel, error) {
-	tx, err := s.pool.Begin(ctx)
+	var duel Duel
+	err := s.txManager.ExecTx(ctx, func(txCtx context.Context) error {
+		films, err := s.repo.SelectRandomFilms(txCtx)
+		if err != nil {
+			log.Println(err)
+			return err
+		}
+
+		duel = Duel{
+			FilmA: &films[0],
+			FilmB: &films[1],
+		}
+
+		if err = s.repo.Insert(txCtx, &duel); err != nil {
+			log.Println(err)
+		}
+		return err
+	})
 	if err != nil {
-		log.Println(err)
-		return Duel{}, err
+		return Duel{}, nil
 	}
-	defer tx.Rollback(ctx)
-
-	txRepo := s.repo.WithTx(tx)
-	films, err := txRepo.SelectRandomFilms(ctx)
-	if err != nil {
-		return Duel{}, err
-	}
-
-	duel := Duel{
-		FilmA: &films[0],
-		FilmB: &films[1],
-	}
-
-	err = txRepo.Insert(ctx, &duel)
-	if err != nil {
-		log.Println(err)
-		return Duel{}, err
-	}
-
-	err = tx.Commit(ctx)
-	if err != nil {
-		log.Println(err)
-		return Duel{}, err
-	}
-
 	return duel, nil
 }
 

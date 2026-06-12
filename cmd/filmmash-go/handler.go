@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"filmmash/internal/duel"
 	"filmmash/internal/film"
 	"filmmash/internal/vote"
@@ -9,7 +10,7 @@ import (
 	"log"
 	"net/http"
 	"strconv"
-	"sync"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
@@ -21,16 +22,16 @@ type HomeData struct {
 }
 
 type AppHandler struct {
-	voteService *vote.Service
-	filmService *film.Service
-	duelService *duel.Service
+	filmService    *film.Service
+	duelService    *duel.Service
+	registerVoteUc *vote.RegisterVoteUC
 }
 
-func NewAppHandler(fs *film.Service, ds *duel.Service, vs *vote.Service) *AppHandler {
+func NewAppHandler(fs *film.Service, ds *duel.Service, rvuc *vote.RegisterVoteUC) *AppHandler {
 	return &AppHandler{
-		filmService: fs,
-		duelService: ds,
-		voteService: vs,
+		filmService:    fs,
+		duelService:    ds,
+		registerVoteUc: rvuc,
 	}
 }
 
@@ -82,17 +83,23 @@ func (h *AppHandler) DuelResultHandler(w http.ResponseWriter, r *http.Request) {
 	winnerId, err := strconv.Atoi(r.FormValue("winner"))
 	if err != nil {
 		log.Println(err)
-	} else {
-		fmt.Println(duelId, winnerId)
-		var wg sync.WaitGroup
-		wg.Go(func() {
-			h.voteService.RegisterVote(r.Context(), duelId, winnerId)
-		})
-		wg.Wait()
+		http.Error(w, "Invalid winner could not be parsed", http.StatusBadRequest)
+		return
 	}
 
+	fmt.Println(duelId, winnerId)
+
+	go func() {
+		ctx, cancel := context.WithTimeout(context.WithoutCancel(r.Context()), 5*time.Second)
+		defer cancel()
+
+		_, err := h.registerVoteUc.RegisterVote(ctx, duelId, winnerId)
+		if err != nil {
+			log.Printf("Failed to register async vote (duelId: %v): %v", duelId, err)
+		}
+	}()
+
 	duel, err := h.duelService.ComposeDuel(r.Context(), winnerId)
-	// duel, err := h.duelService.CreateDuel(r.Context())
 	if err != nil {
 		log.Println()
 		http.Error(w, "Could not fetch the films for a duel.", http.StatusExpectationFailed)

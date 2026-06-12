@@ -8,20 +8,15 @@ import (
 	"log"
 
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type repository struct {
-	db database.DBConn
+	pool *pgxpool.Pool
 }
 
 func newRepository(pool *pgxpool.Pool) *repository {
-	return &repository{db: pool}
-}
-
-func (r *repository) WithTx(tx pgx.Tx) *repository {
-	return &repository{db: tx}
+	return &repository{pool: pool}
 }
 
 func (r *repository) Insert(ctx context.Context, duel *Duel) error {
@@ -29,7 +24,9 @@ func (r *repository) Insert(ctx context.Context, duel *Duel) error {
 	INSERT INTO duels (film_a_id, film_b_id) 
 	VALUES ($1, $2) 
 	RETURNING id`
-	return r.db.QueryRow(ctx, query, duel.FilmA.Id, duel.FilmB.Id).Scan(&duel.Id)
+
+	q := database.ExtractTx(ctx, r.pool)
+	return q.QueryRow(ctx, query, duel.FilmA.Id, duel.FilmB.Id).Scan(&duel.Id)
 }
 
 func (r *repository) GetById(ctx context.Context, id uuid.UUID) (Duel, error) {
@@ -43,7 +40,8 @@ func (r *repository) GetById(ctx context.Context, id uuid.UUID) (Duel, error) {
 		SELECT film_b_id FROM duels WHERE id = $1
 	)`
 
-	rows, err := r.db.Query(ctx, query, id)
+	q := database.ExtractTx(ctx, r.pool)
+	rows, err := q.Query(ctx, query, id)
 	if err != nil {
 		log.Println(err)
 		return Duel{}, err
@@ -98,7 +96,8 @@ func (r *repository) GetDuelRatings(ctx context.Context, id uuid.UUID) ([2]FilmR
 		SELECT film_b_id FROM duels WHERE id = $1
 	)`
 
-	rows, err := r.db.Query(ctx, query, id)
+	q := database.ExtractTx(ctx, r.pool)
+	rows, err := q.Query(ctx, query, id)
 	if err != nil {
 		log.Println(err)
 		return [2]FilmRating{}, err
@@ -140,7 +139,7 @@ func (r *repository) SelectRandomFilms(ctx context.Context) ([2]film.Film, error
 	JOIN directors ON films.director_id = directors.id
 	ORDER BY RANDOM() LIMIT 2`
 
-	filRows, err := r.db.Query(ctx, query)
+	filRows, err := r.pool.Query(ctx, query)
 	if err != nil {
 		log.Println(err)
 		return [2]film.Film{}, err
