@@ -40,7 +40,7 @@ func NewTxManager(pool *pgxpool.Pool) *TxManager {
 	return &TxManager{pool: pool}
 }
 
-func (tm *TxManager) ExecTx(ctx context.Context, fn func(ctx context.Context) error) error {
+func (tm *TxManager) ExecTx(ctx context.Context, fn func(ctx context.Context) error) (err error) {
 	tx, err := tm.pool.Begin(ctx)
 	if err != nil {
 		return err

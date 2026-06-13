@@ -86,7 +86,7 @@ func (r *repository) GetById(ctx context.Context, id uuid.UUID) (Duel, error) {
 	}, nil
 }
 
-func (r *repository) GetDuelRatings(ctx context.Context, id uuid.UUID) ([2]film.FilmRating, error) {
+func (r *repository) GetDuelRatingsForUpdate(ctx context.Context, id uuid.UUID) ([2]film.FilmRating, error) {
 	query := `
 	SELECT id, rating
 	FROM films
@@ -94,7 +94,9 @@ func (r *repository) GetDuelRatings(ctx context.Context, id uuid.UUID) ([2]film.
 		SELECT film_a_id FROM duels WHERE id = $1
 		UNION
 		SELECT film_b_id FROM duels WHERE id = $1
-	)`
+	)
+	ORDER BY films.id
+	FOR UPDATE`
 
 	q := database.ExtractTx(ctx, r.pool)
 	rows, err := q.Query(ctx, query, id)

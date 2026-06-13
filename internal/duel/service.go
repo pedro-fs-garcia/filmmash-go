@@ -27,7 +27,7 @@ func (s *Service) GetById(ctx context.Context, id uuid.UUID) (Duel, error) {
 }
 
 func (s *Service) GetDuelRatings(ctx context.Context, id uuid.UUID) ([2]film.FilmRating, error) {
-	return s.repo.GetDuelRatings(ctx, id)
+	return s.repo.GetDuelRatingsForUpdate(ctx, id)
 }
 
 func (s *Service) CreateRandomDuel(ctx context.Context) (Duel, error) {
@@ -50,7 +50,7 @@ func (s *Service) CreateRandomDuel(ctx context.Context) (Duel, error) {
 		return err
 	})
 	if err != nil {
-		return Duel{}, nil
+		return Duel{}, err
 	}
 	return duel, nil
 }

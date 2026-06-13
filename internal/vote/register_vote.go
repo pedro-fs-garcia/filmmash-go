@@ -33,7 +33,7 @@ func (uc *RegisterVoteUC) RegisterVote(ctx context.Context, duelId uuid.UUID, wi
 		ratings, err := uc.duelService.GetDuelRatings(txCtx, duelId)
 		if err != nil {
 			log.Println(err)
-			return nil
+			return err
 		}
 
 		var winner, loser film.FilmRating
