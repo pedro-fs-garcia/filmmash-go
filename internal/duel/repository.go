@@ -192,12 +192,6 @@ func (r *repository) ComposeDuel(ctx context.Context, winnerId int) (Duel, error
 		INSERT INTO duels (film_a_id, film_b_id)
 		SELECT $1, id FROM random_id
 		RETURNING id AS duel_id, film_a_id, film_b_id
-	),
-	target_films AS (
-		SELECT f.id, f.title, f.release_year, f.image_path, f.rating, d.id AS director_id, d.name AS director_name
-		FROM films f
-		JOIN directors d ON f.director_id = d.id
-		WHERE f.id = $1 OR f.id = (SELECT film_b_id FROM inserted_duel)
 	)
 	SELECT i.duel_id,
 		fa.id, fa.title, fa.release_year, fa.image_path, fa.rating, da.id, da.name,
