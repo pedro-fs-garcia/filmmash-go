@@ -36,7 +36,7 @@ func (uc *RegisterVoteUC) RegisterVote(ctx context.Context, duelId uuid.UUID, wi
 			return nil
 		}
 
-		var winner, loser duel.FilmRating
+		var winner, loser film.FilmRating
 		switch winnerId {
 		case ratings[0].Id:
 			winner, loser = ratings[0], ratings[1]
@@ -59,7 +59,14 @@ func (uc *RegisterVoteUC) RegisterVote(ctx context.Context, duelId uuid.UUID, wi
 		err = uc.voteRepo.InsertVote(txCtx, &vote)
 		if err != nil {
 			log.Println(err)
+			return err
 		}
+
+		filmRatings := []*film.FilmRating{
+			{Id: winnerId, Rating: newWinnerRating},
+			{Id: loser.Id, Rating: newLoserRating},
+		}
+		err = uc.filmService.UpdateRatings(txCtx, filmRatings)
 		return err
 	})
 	if err != nil {

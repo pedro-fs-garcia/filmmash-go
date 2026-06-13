@@ -11,8 +11,3 @@ type Duel struct {
 	FilmA *film.Film
 	FilmB *film.Film
 }
-
-type FilmRating struct {
-	Id     int
-	Rating float64
-}

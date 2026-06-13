@@ -13,3 +13,8 @@ type Film struct {
 	ImagePath string
 	Rating    float64
 }
+
+type FilmRating struct {
+	Id     int
+	Rating float64
+}

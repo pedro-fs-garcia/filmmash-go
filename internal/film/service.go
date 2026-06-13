@@ -35,3 +35,7 @@ func CalculateRatings(winnerRating, loserRating float64) (newWinnerRating, newLo
 	newLoserRating = loserRating + K*(0-Eb)
 	return newWinnerRating, newLoserRating
 }
+
+func (s *Service) UpdateRatings(ctx context.Context, films []*FilmRating) error {
+	return s.repo.UpdateRatings(ctx, films)
+}

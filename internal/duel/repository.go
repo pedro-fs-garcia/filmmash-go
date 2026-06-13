@@ -86,7 +86,7 @@ func (r *repository) GetById(ctx context.Context, id uuid.UUID) (Duel, error) {
 	}, nil
 }
 
-func (r *repository) GetDuelRatings(ctx context.Context, id uuid.UUID) ([2]FilmRating, error) {
+func (r *repository) GetDuelRatings(ctx context.Context, id uuid.UUID) ([2]film.FilmRating, error) {
 	query := `
 	SELECT id, rating
 	FROM films
@@ -100,11 +100,11 @@ func (r *repository) GetDuelRatings(ctx context.Context, id uuid.UUID) ([2]FilmR
 	rows, err := q.Query(ctx, query, id)
 	if err != nil {
 		log.Println(err)
-		return [2]FilmRating{}, err
+		return [2]film.FilmRating{}, err
 	}
 	defer rows.Close()
 
-	var ratings [2]FilmRating
+	var ratings [2]film.FilmRating
 	i := 0
 	for rows.Next() {
 		var film_id int
@@ -112,10 +112,10 @@ func (r *repository) GetDuelRatings(ctx context.Context, id uuid.UUID) ([2]FilmR
 		err = rows.Scan(&film_id, &rating)
 		if err != nil {
 			log.Println(err)
-			return [2]FilmRating{}, err
+			return [2]film.FilmRating{}, err
 		}
 
-		ratings[i] = FilmRating{
+		ratings[i] = film.FilmRating{
 			Id:     film_id,
 			Rating: rating,
 		}
@@ -124,10 +124,10 @@ func (r *repository) GetDuelRatings(ctx context.Context, id uuid.UUID) ([2]FilmR
 	}
 
 	if err = rows.Err(); err != nil {
-		return [2]FilmRating{}, err
+		return [2]film.FilmRating{}, err
 	}
 	if i < 2 {
-		return [2]FilmRating{}, fmt.Errorf("duel %s does not have two films", id)
+		return [2]film.FilmRating{}, fmt.Errorf("duel %s does not have two films", id)
 	}
 	return ratings, nil
 }
@@ -186,6 +186,7 @@ func (r *repository) ComposeDuel(ctx context.Context, winnerId int) (Duel, error
 	query := `
 	WITH random_id AS (
 		SELECT id FROM films
+		WHERE id <> $1
 		ORDER BY RANDOM() LIMIT 1
 	),
 	inserted_duel AS (

@@ -26,7 +26,7 @@ func (s *Service) GetById(ctx context.Context, id uuid.UUID) (Duel, error) {
 	return s.repo.GetById(ctx, id)
 }
 
-func (s *Service) GetDuelRatings(ctx context.Context, id uuid.UUID) ([2]FilmRating, error) {
+func (s *Service) GetDuelRatings(ctx context.Context, id uuid.UUID) ([2]film.FilmRating, error) {
 	return s.repo.GetDuelRatings(ctx, id)
 }
 

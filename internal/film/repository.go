@@ -3,7 +3,9 @@ package film
 import (
 	"context"
 	"filmmash/internal/database"
+	"log"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -101,4 +103,30 @@ func (r *repository) GetRandomFilm(ctx context.Context) (Film, error) {
 		Rating:    rating,
 	}
 	return film, nil
+}
+
+func (r *repository) UpdateRating(ctx context.Context, f *Film) error {
+	query := "UPDATE films SET rating = $1 WHERE id = $2"
+
+	q := database.ExtractTx(ctx, r.pool)
+	return q.QueryRow(ctx, query, f.Id).Scan()
+}
+
+func (r *repository) UpdateRatings(ctx context.Context, films []*FilmRating) error {
+	query := "UPDATE films SET rating = $1 WHERE id = $2"
+
+	batch := &pgx.Batch{}
+	for i := range films {
+		batch.Queue(query, films[i].Rating, films[i].Id)
+	}
+	q := database.ExtractTx(ctx, r.pool)
+	res := q.SendBatch(ctx, batch)
+	defer res.Close()
+	for range films {
+		if _, err := res.Exec(); err != nil {
+			log.Println(err)
+			return err
+		}
+	}
+	return nil
 }
