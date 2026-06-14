@@ -1,11 +1,10 @@
-package main
+package web
 
 import (
 	"context"
 	"filmmash/internal/duel"
 	"filmmash/internal/film"
 	"filmmash/internal/vote"
-	"filmmash/internal/web"
 	"fmt"
 	"html/template"
 	"log"
@@ -17,45 +16,40 @@ import (
 	"github.com/google/uuid"
 )
 
-type HomeData struct {
-	Title   string
-	Message string
-}
-
-type AppHandler struct {
+type Handler struct {
 	filmService    *film.Service
-	duelService    *duel.Service
 	registerVoteUc *vote.RegisterVoteUC
+	duelService    *duel.Service
 }
 
-var templateCache = make(map[string]*template.Template)
-
-func init() {
-	templateCache["filmPage"] = template.Must(template.ParseFS(web.TemplatesFS,
-		"base.html",
-		"film.html",
-	))
-	templateCache["duelPage"] = template.Must(template.ParseFS(web.TemplatesFS,
-		"base.html",
-		"index.html",
-		"duelCard.html",
-		"filmCard.html",
-	))
-	templateCache["duelCard"] = template.Must(template.ParseFS(web.TemplatesFS,
-		"duelCard.html",
-		"filmCard.html",
-	))
-}
-
-func NewAppHandler(fs *film.Service, ds *duel.Service, rvuc *vote.RegisterVoteUC) *AppHandler {
-	return &AppHandler{
+func NewHandler(fs *film.Service, ds *duel.Service, rvuc *vote.RegisterVoteUC) *Handler {
+	return &Handler{
 		filmService:    fs,
 		duelService:    ds,
 		registerVoteUc: rvuc,
 	}
 }
 
-func (h *AppHandler) FilmHandler(w http.ResponseWriter, r *http.Request) {
+var templateCache = make(map[string]*template.Template)
+
+func init() {
+	templateCache["filmPage"] = template.Must(template.ParseFS(TemplatesFS,
+		"template/base.html",
+		"template/film.html",
+	))
+	templateCache["duelPage"] = template.Must(template.ParseFS(TemplatesFS,
+		"template/base.html",
+		"template/index.html",
+		"template/duelCard.html",
+		"template/filmCard.html",
+	))
+	templateCache["duelCard"] = template.Must(template.ParseFS(TemplatesFS,
+		"template/duelCard.html",
+		"template/filmCard.html",
+	))
+}
+
+func (h *Handler) FilmHandler(w http.ResponseWriter, r *http.Request) {
 	par := chi.URLParam(r, "id")
 	id, err := strconv.Atoi(par)
 	if err != nil {
@@ -76,7 +70,7 @@ func (h *AppHandler) FilmHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (h *AppHandler) DuelHandler(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) DuelHandler(w http.ResponseWriter, r *http.Request) {
 	duel, err := h.duelService.CreateRandomDuel(r.Context())
 	if err != nil {
 		log.Println(err)
@@ -92,7 +86,7 @@ func (h *AppHandler) DuelHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (h *AppHandler) DuelResultHandler(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) DuelResultHandler(w http.ResponseWriter, r *http.Request) {
 	duelId, err := uuid.Parse(chi.URLParam(r, "duel_id"))
 	if err != nil {
 		log.Println(err)

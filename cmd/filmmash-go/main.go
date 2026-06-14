@@ -7,13 +7,10 @@ import (
 	"filmmash/internal/duel"
 	"filmmash/internal/film"
 	"filmmash/internal/vote"
+	"filmmash/internal/web"
 	"fmt"
 	"log"
-	"net"
-	"net/http"
 	"os"
-
-	"github.com/go-chi/chi/v5"
 )
 
 func main() {
@@ -48,35 +45,11 @@ func run() error {
 	voteRepo := vote.NewRepository(pool)
 	registerVoteUC := vote.NewRegisterVoteUC(voteRepo, filmService, duelService)
 
-	handler := NewAppHandler(
-		filmService,
-		duelService,
-		registerVoteUC,
-	)
+	router := web.InitRouter(filmService, duelService, registerVoteUC)
 
-	router := chi.NewRouter()
-	router.Route("/ui", func(r chi.Router) {
-		r.Get("/", handler.DuelHandler)
-		r.Get("/film/{id}", handler.FilmHandler)
-		r.Post("/duel/{duel_id}/result", handler.DuelResultHandler)
-	})
-
-	router.Route("/api", func(r chi.Router) {
-	})
-
-	httpServer := &http.Server{
-		Addr:    fmt.Sprintf(":%s", cfg.Port),
-		Handler: router,
-	}
-
-	ln, err := net.Listen("tcp", httpServer.Addr)
+	_, err = InitServer(cfg.Port, router)
 	if err != nil {
-		return fmt.Errorf("failed to listen on %s: %w", httpServer.Addr, err)
-	}
-
-	log.Printf("server listening on port %s\n", httpServer.Addr)
-
-	if err := httpServer.Serve(ln); err != nil && err != http.ErrServerClosed {
+		log.Println(err)
 		return err
 	}
 
