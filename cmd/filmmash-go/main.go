@@ -6,6 +6,7 @@ import (
 	"filmmash/internal/database"
 	"filmmash/internal/duel"
 	"filmmash/internal/film"
+	"filmmash/internal/metrics"
 	"filmmash/internal/vote"
 	"filmmash/internal/web"
 	"fmt"
@@ -39,13 +40,15 @@ func run() error {
 		panic(err)
 	}
 
+	m := metrics.NewMetrics()
+
 	filmService := film.NewService(pool)
 	duelService := duel.NewService(pool, filmService)
 
 	voteRepo := vote.NewRepository(pool)
 	registerVoteUC := vote.NewRegisterVoteUC(voteRepo, filmService, duelService)
 
-	router := web.InitRouter(filmService, duelService, registerVoteUC)
+	router := web.InitRouter(m, filmService, duelService, registerVoteUC)
 
 	_, err = InitServer(cfg.Port, router)
 	if err != nil {
