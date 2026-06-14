@@ -4,6 +4,7 @@ import (
 	"context"
 	"filmmash/internal/database"
 	"filmmash/internal/film"
+	"filmmash/internal/metrics"
 	"log"
 
 	"github.com/google/uuid"
@@ -11,13 +12,14 @@ import (
 )
 
 type Service struct {
+	metrics     *metrics.DuelMetrics
 	repo        *repository
 	txManager   *database.TxManager
 	filmService *film.Service
 }
 
 func NewService(pool *pgxpool.Pool, filmService *film.Service) *Service {
-	repo := newRepository(pool)
+	repo := NewRepository(pool)
 	txManager := database.NewTxManager(pool)
 	return &Service{repo: repo, txManager: txManager, filmService: filmService}
 }
@@ -52,9 +54,21 @@ func (s *Service) CreateRandomDuel(ctx context.Context) (Duel, error) {
 	if err != nil {
 		return Duel{}, err
 	}
+
+	s.metrics.DuelCreated()
 	return duel, nil
 }
 
 func (s *Service) ComposeDuel(ctx context.Context, winnerId int) (Duel, error) {
-	return s.repo.ComposeDuel(ctx, winnerId)
+	duel, err := s.repo.ComposeDuel(ctx, winnerId)
+	if err != nil {
+		log.Println(err)
+		return Duel{}, nil
+	}
+	s.metrics.DuelCreated()
+	return duel, nil
+}
+
+func (s *Service) CountPending(ctx context.Context) (int, error) {
+	return s.repo.CountPending(ctx)
 }

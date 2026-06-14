@@ -12,6 +12,8 @@ import (
 type Metrics struct {
 	Registry    *prometheus.Registry
 	HttpMetrics *HttpMetrics
+	FilmMetrics *FilmMetrics
+	DuelMetrics *DuelMetrics
 	VoteMetrics *VoteMetrics
 }
 
@@ -24,6 +26,8 @@ func NewMetrics() *Metrics {
 	return &Metrics{
 		Registry:    reg,
 		HttpMetrics: NewHttp(reg),
+		FilmMetrics: NewFilmMetrics(reg),
+		DuelMetrics: NewDuelMetrics(reg),
 		VoteMetrics: NewVote(reg),
 	}
 }

@@ -46,9 +46,27 @@ func run() error {
 	duelService := duel.NewService(pool, filmService)
 
 	voteRepo := vote.NewRepository(pool)
-	registerVoteUC := vote.NewRegisterVoteUC(voteRepo, filmService, duelService)
+	registerVoteUC := vote.NewRegisterVoteUC(m.VoteMetrics, voteRepo, filmService, duelService)
 
 	router := web.InitRouter(m, filmService, duelService, registerVoteUC)
+
+	pendingDuels, err := duelService.CountPending(context.Background())
+	if err != nil {
+		panic(err)
+	}
+	m.DuelMetrics.SeedPending(pendingDuels)
+
+	totalFilms, err := filmService.CountTotal(ctx)
+	if err != nil {
+		panic(err)
+	}
+	m.FilmMetrics.SeedCurrentTotal(totalFilms)
+
+	totalVotes, err := voteRepo.CurrrentTotal(ctx)
+	if err != nil {
+		panic(err)
+	}
+	m.VoteMetrics.SeedTotal(totalVotes)
 
 	_, err = InitServer(cfg.Port, router)
 	if err != nil {

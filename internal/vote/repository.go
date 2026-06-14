@@ -27,3 +27,11 @@ func (r *repository) InsertVote(ctx context.Context, vote *Vote) error {
 		vote.WinnerID, vote.LoserId, vote.WinnerRatingAfter, vote.LoserRatingAfter,
 	).Scan(&vote.Id)
 }
+
+func (r *repository) CurrrentTotal(ctx context.Context) (int, error) {
+	query := "SELECT COUNT(*) FROM votes"
+	var n int
+	q := database.ExtractTx(ctx, r.pool)
+	err := q.QueryRow(ctx, query).Scan(&n)
+	return n, err
+}

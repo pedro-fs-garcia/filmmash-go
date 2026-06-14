@@ -130,3 +130,11 @@ func (r *repository) UpdateRatings(ctx context.Context, films []*FilmRating) err
 	}
 	return nil
 }
+
+func (r *repository) CountTotal(ctx context.Context) (int, error) {
+	query := "SELECT COUNT(*) FROM films"
+	q := database.ExtractTx(ctx, r.pool)
+	var n int
+	err := q.QueryRow(ctx, query).Scan(&n)
+	return n, err
+}

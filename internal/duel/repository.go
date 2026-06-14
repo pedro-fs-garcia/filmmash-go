@@ -15,7 +15,7 @@ type repository struct {
 	pool *pgxpool.Pool
 }
 
-func newRepository(pool *pgxpool.Pool) *repository {
+func NewRepository(pool *pgxpool.Pool) *repository {
 	return &repository{pool: pool}
 }
 
@@ -223,4 +223,15 @@ func (r *repository) ComposeDuel(ctx context.Context, winnerId int) (Duel, error
 		FilmA: &fa,
 		FilmB: &fb,
 	}, nil
+}
+
+func (r *repository) CountPending(ctx context.Context) (int, error) {
+	query := `
+	SELECT COUNT(*) FROM duels d
+	WHERE NOT EXISTS (SELECT 1 FROM votes v WHERE v.duel_id = d.id)
+	`
+	var n int
+	q := database.ExtractTx(ctx, r.pool)
+	err := q.QueryRow(ctx, query).Scan(&n)
+	return n, err
 }

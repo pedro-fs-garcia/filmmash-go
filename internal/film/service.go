@@ -39,3 +39,7 @@ func CalculateRatings(winnerRating, loserRating float64) (newWinnerRating, newLo
 func (s *Service) UpdateRatings(ctx context.Context, films []*FilmRating) error {
 	return s.repo.UpdateRatings(ctx, films)
 }
+
+func (s *Service) CountTotal(ctx context.Context) (int, error) {
+	return s.repo.CountTotal(ctx)
+}

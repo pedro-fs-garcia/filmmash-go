@@ -20,6 +20,10 @@ func NewVote(reg prometheus.Registerer) *VoteMetrics {
 	return v
 }
 
-func (v *VoteMetrics) VoteRecorded(vote string) {
-	v.total.WithLabelValues(vote).Inc()
+func (m *VoteMetrics) VoteRegistered(vote string) {
+	m.total.WithLabelValues(vote).Inc()
+}
+
+func (m *VoteMetrics) SeedTotal(n int) {
+	m.total.WithLabelValues("preexisting votes").Add(float64(n))
 }

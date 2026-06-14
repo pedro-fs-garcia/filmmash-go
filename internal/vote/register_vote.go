@@ -5,20 +5,23 @@ import (
 	"filmmash/internal/database"
 	"filmmash/internal/duel"
 	"filmmash/internal/film"
+	"filmmash/internal/metrics"
 	"fmt"
 	"log"
+	"strconv"
 
 	"github.com/google/uuid"
 )
 
 type RegisterVoteUC struct {
+	metrics     *metrics.VoteMetrics
 	voteRepo    *repository
 	txManager   *database.TxManager
 	filmService *film.Service
 	duelService *duel.Service
 }
 
-func NewRegisterVoteUC(repo *repository, filmService *film.Service, duelService *duel.Service) *RegisterVoteUC {
+func NewRegisterVoteUC(metrics *metrics.VoteMetrics, repo *repository, filmService *film.Service, duelService *duel.Service) *RegisterVoteUC {
 	return &RegisterVoteUC{
 		voteRepo:    repo,
 		txManager:   database.NewTxManager(repo.pool),
@@ -72,5 +75,7 @@ func (uc *RegisterVoteUC) RegisterVote(ctx context.Context, duelId uuid.UUID, wi
 	if err != nil {
 		return Vote{}, err
 	}
+
+	uc.metrics.VoteRegistered(strconv.Itoa(vote.WinnerID))
 	return vote, nil
 }
