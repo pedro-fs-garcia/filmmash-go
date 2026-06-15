@@ -3,28 +3,41 @@ package film
 import (
 	"context"
 	"filmmash/internal/database"
+	"fmt"
+	"log/slog"
 	"math"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type Service struct {
+	logger    *slog.Logger
 	repo      *repository
 	txManager *database.TxManager
 }
 
-func NewService(pool *pgxpool.Pool) *Service {
-	repo := repository{pool: pool}
-	tm := database.NewTxManager(pool)
-	return &Service{repo: &repo, txManager: tm}
+func NewService(logger *slog.Logger, pool *pgxpool.Pool) *Service {
+	return &Service{
+		logger:    logger.With(slog.String("component", "Service")),
+		repo:      NewRepository(logger, pool),
+		txManager: database.NewTxManager(pool),
+	}
 }
 
 func (s *Service) GetFilm(ctx context.Context, id int) (Film, error) {
-	return s.repo.GetFilm(ctx, id)
+	film, err := s.repo.GetFilm(ctx, id)
+	if err != nil {
+		return Film{}, err
+	}
+	return film, nil
 }
 
 func (s *Service) GetRandomFilm(ctx context.Context) (Film, error) {
-	return s.repo.GetRandomFilm(ctx)
+	film, err := s.repo.GetRandomFilm(ctx)
+	if err != nil {
+		return Film{}, fmt.Errorf("Failed to get random film: %w", err)
+	}
+	return film, nil
 }
 
 func CalculateRatings(winnerRating, loserRating float64) (newWinnerRating, newLoserRating float64) {

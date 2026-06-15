@@ -7,6 +7,7 @@ import (
 	"filmmash/internal/film"
 	"filmmash/internal/testdb"
 	"log"
+	"log/slog"
 	"os"
 	"testing"
 
@@ -15,6 +16,14 @@ import (
 )
 
 var testPool *pgxpool.Pool
+
+var testLogger = slog.New(slog.NewJSONHandler(
+	os.Stdout,
+	&slog.HandlerOptions{
+		AddSource: true,
+		Level:     slog.LevelDebug,
+	},
+)).With(slog.String("package", "film_test"), slog.String("component", "repository"))
 
 var testFilm = film.Film{
 	Id:    1234,
@@ -50,7 +59,7 @@ func TestRepository_Insert(t *testing.T) {
 	defer tx.Rollback(ctx)
 
 	txCtx := database.InjectTx(ctx, tx)
-	repo := film.NewRepository(testPool)
+	repo := film.NewRepository(testLogger, testPool)
 
 	f := testFilm
 	if err := repo.Insert(txCtx, &f); err != nil {
@@ -80,7 +89,7 @@ func TestRepository_Insert_DuplicateFails(t *testing.T) {
 	defer tx.Rollback(ctx)
 
 	txCtx := database.InjectTx(ctx, tx)
-	repo := film.NewRepository(testPool)
+	repo := film.NewRepository(testLogger, testPool)
 
 	f := testFilm
 	if err := repo.Insert(txCtx, &f); err != nil {

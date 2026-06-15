@@ -11,6 +11,7 @@ import (
 	"filmmash/internal/web"
 	"fmt"
 	"log"
+	"log/slog"
 	"os"
 )
 
@@ -35,6 +36,14 @@ func run() error {
 		cfg.PgDbName,
 	)
 
+	logger := slog.New(slog.NewJSONHandler(
+		os.Stdout,
+		&slog.HandlerOptions{
+			AddSource: true,
+			Level:     slog.LevelDebug,
+		},
+	))
+
 	pool, err := database.Pool(ctx, dsn)
 	if err != nil {
 		panic(err)
@@ -42,7 +51,10 @@ func run() error {
 
 	m := metrics.NewMetrics()
 
-	filmService := film.NewService(pool)
+	filmLogger := logger.With(slog.String("package", "film"))
+	filmService := film.NewService(filmLogger, pool)
+
+	// duelLogger := logger.With(slog.String("package", "duel"))
 	duelService := duel.NewService(pool, filmService)
 
 	voteRepo := vote.NewRepository(pool)

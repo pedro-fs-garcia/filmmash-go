@@ -2,19 +2,27 @@ package film
 
 import (
 	"context"
+	"database/sql"
+	"errors"
 	"filmmash/internal/database"
-	"log"
+	"fmt"
+	"log/slog"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type repository struct {
-	pool *pgxpool.Pool
+	logger *slog.Logger
+	pool   *pgxpool.Pool
 }
 
-func NewRepository(pool *pgxpool.Pool) *repository {
-	return &repository{pool: pool}
+func NewRepository(logger *slog.Logger, pool *pgxpool.Pool) *repository {
+	return &repository{
+		logger: logger.With(slog.String("component", "repository")),
+		pool:   pool,
+	}
 }
 
 func (r *repository) Insert(ctx context.Context, f *Film) error {
@@ -29,7 +37,7 @@ func (r *repository) Insert(ctx context.Context, f *Film) error {
 	RETURNING id;
 	`
 	q := database.ExtractTx(ctx, r.pool)
-	return q.QueryRow(ctx,
+	err := q.QueryRow(ctx,
 		query,
 		f.Director.Id,
 		f.Director.Name,
@@ -38,6 +46,17 @@ func (r *repository) Insert(ctx context.Context, f *Film) error {
 		f.Year,
 		f.ImagePath,
 	).Scan(&f.Id)
+	if err != nil {
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
+			return fmt.Errorf(
+				"conflito de insercao de filme ou diretor (film_id: %v, director_id: %v): %w",
+				f.Id, f.Director.Id, ErrDuplicateEntry,
+			)
+		}
+		return fmt.Errorf("Failed to insert film (id: %d): %w", f.Id, err)
+	}
+	return nil
 }
 
 func (r *repository) GetFilm(ctx context.Context, id int) (Film, error) {
@@ -50,7 +69,10 @@ func (r *repository) GetFilm(ctx context.Context, id int) (Film, error) {
 	q := database.ExtractTx(ctx, r.pool)
 	rows, err := q.Query(ctx, query, id)
 	if err != nil {
-		return Film{}, err
+		if err == sql.ErrNoRows {
+			return Film{}, fmt.Errorf("Repository failed to get film (id: %d): %w", id, ErrNotFound)
+		}
+		return Film{}, fmt.Errorf("Internal database error to get film (id: %d): %w", id, err)
 	}
 
 	defer rows.Close()
@@ -60,7 +82,10 @@ func (r *repository) GetFilm(ctx context.Context, id int) (Film, error) {
 	var title, image_path, director_name string
 	rows.Next()
 	err = rows.Scan(&film_id, &title, &release_year, &image_path, &rating, &director_id, &director_name)
+	if err != nil {
+		return Film{}, fmt.Errorf("Failed to map film data (id: %d): %w", id, err)
 
+	}
 	film := Film{
 		Id:    film_id,
 		Title: title,
@@ -88,6 +113,9 @@ func (r *repository) GetRandomFilm(ctx context.Context) (Film, error) {
 	var title, image_path, director_name string
 	err := q.QueryRow(ctx, query).Scan(&film_id, &title, &release_year, &image_path, &rating, &director_id, &director_name)
 	if err != nil {
+		r.logger.ErrorContext(ctx, "Failed to get random film",
+			slog.String("error", err.Error()),
+		)
 		return Film{}, err
 	}
 
@@ -109,7 +137,11 @@ func (r *repository) UpdateRating(ctx context.Context, f *Film) error {
 	query := "UPDATE films SET rating = $1 WHERE id = $2"
 
 	q := database.ExtractTx(ctx, r.pool)
-	return q.QueryRow(ctx, query, f.Id).Scan()
+	_, err := q.Exec(ctx, query, f.Rating, f.Id)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func (r *repository) UpdateRatings(ctx context.Context, films []*FilmRating) error {
@@ -124,7 +156,9 @@ func (r *repository) UpdateRatings(ctx context.Context, films []*FilmRating) err
 	defer res.Close()
 	for range films {
 		if _, err := res.Exec(); err != nil {
-			log.Println(err)
+			r.logger.ErrorContext(ctx, "failed to update film ratings batch",
+				slog.String("error", err.Error()),
+			)
 			return err
 		}
 	}
@@ -136,5 +170,11 @@ func (r *repository) CountTotal(ctx context.Context) (int, error) {
 	q := database.ExtractTx(ctx, r.pool)
 	var n int
 	err := q.QueryRow(ctx, query).Scan(&n)
-	return n, err
+	if err != nil {
+		r.logger.ErrorContext(ctx, "failed to count films",
+			slog.String("error", err.Error()),
+		)
+		return 0, err
+	}
+	return n, nil
 }
