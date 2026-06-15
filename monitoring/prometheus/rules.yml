@@ -1,0 +1,46 @@
+groups:
+  - name: filmmash-availability
+    rules:
+      - alert: FilmmashDown
+        expr: up{job="app"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          service: app
+        annotations:
+          summary: "Filmmash is down"
+          description: "Prometheus could not scrape the /metrics endpoint for 1 minute."
+
+      - alert: FilmmashHighErrorRate
+        expr: |
+          (
+            sum(rate(http_requests_total{job="app",status=~"5.."}[5m]))
+            /
+            clamp_min(sum(rate(http_requests_total{job="app"}[5m])), 0.001)
+          ) > 0.05
+        for: 5m
+        labels:
+          severity: warning
+          service: app
+        annotations:
+          summary: "High 5XX error rate"
+          description: "5xx responses are above 5% over the last 5 minutes."
+
+      - alert: FilmmashHighLatencyRate
+        expr: |
+          (
+            1
+            -
+            (
+              sum(rate(http_request_duration_seconds_bucket{job="app",le="0.5"}[5m]))
+              /
+              clamp_min(sum(rate(http_request_duration_seconds_count{job="app"}[5m])), 0.001)
+            )
+          ) > 0.1
+        for: 5m
+        labels:
+          severity: warning
+          service: app
+        annotations:
+          summary: "High latency on server responses"
+          description: "More than 10% of server responses are over 500ms"
