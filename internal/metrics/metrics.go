@@ -22,6 +22,7 @@ func NewMetrics() *Metrics {
 	reg.MustRegister(
 		collectors.NewGoCollector(),
 		collectors.NewProcessCollector(collectors.ProcessCollectorOpts{}),
+		NewHostCollector(),
 	)
 	return &Metrics{
 		Registry:    reg,
