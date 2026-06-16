@@ -51,8 +51,7 @@ func run() error {
 
 	m := metrics.NewMetrics()
 
-	filmLogger := logger.With(slog.String("package", "film"))
-	filmService := film.NewService(filmLogger, pool)
+	filmService := film.NewService(pool)
 
 	// duelLogger := logger.With(slog.String("package", "duel"))
 	duelService := duel.NewService(pool, filmService)
@@ -60,7 +59,7 @@ func run() error {
 	voteRepo := vote.NewRepository(pool)
 	registerVoteUC := vote.NewRegisterVoteUC(m.VoteMetrics, voteRepo, filmService, duelService)
 
-	router := web.InitRouter(m, filmService, duelService, registerVoteUC)
+	router := web.InitRouter(logger.With("package", "web"), m, filmService, duelService, registerVoteUC)
 
 	pendingDuels, err := duelService.CountPending(context.Background())
 	if err != nil {

@@ -1,13 +1,17 @@
 package web
 
 import (
+	"bytes"
 	"context"
+	"errors"
 	"filmmash/internal/duel"
 	"filmmash/internal/film"
+	"filmmash/internal/middleware"
 	"filmmash/internal/vote"
 	"fmt"
 	"html/template"
 	"log"
+	"log/slog"
 	"net/http"
 	"strconv"
 	"time"
@@ -17,13 +21,15 @@ import (
 )
 
 type Handler struct {
+	logger         *slog.Logger
 	filmService    *film.Service
 	registerVoteUc *vote.RegisterVoteUC
 	duelService    *duel.Service
 }
 
-func NewHandler(fs *film.Service, ds *duel.Service, rvuc *vote.RegisterVoteUC) *Handler {
+func NewHandler(l *slog.Logger, fs *film.Service, ds *duel.Service, rvuc *vote.RegisterVoteUC) *Handler {
 	return &Handler{
+		logger:         l,
 		filmService:    fs,
 		duelService:    ds,
 		registerVoteUc: rvuc,
@@ -50,24 +56,52 @@ func init() {
 }
 
 func (h *Handler) FilmHandler(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	reqId := middleware.GetRequestID(ctx)
+	log := h.logger.With(
+		slog.String("method", "FilmHandler"),
+		slog.String("request_id", reqId),
+	)
+
 	par := chi.URLParam(r, "id")
 	id, err := strconv.Atoi(par)
 	if err != nil {
+		log.WarnContext(ctx, "failed to parse film id param from URL",
+			slog.String("error", err.Error()),
+			slog.String("raw_id", par),
+		)
+
 		http.Error(w, "Invalid Id", http.StatusBadRequest)
 		return
 	}
 
-	film, err := h.filmService.GetFilm(r.Context(), id)
+	f, err := h.filmService.GetFilm(ctx, id)
 	if err != nil {
-		http.Error(w, "Error on GetFilm service", http.StatusInternalServerError)
+		if errors.Is(err, film.ErrNotFound) {
+			http.Error(w, fmt.Sprintf("Film (id: %v) was not found", id), http.StatusNotFound)
+			return
+		}
+
+		log.ErrorContext(ctx, "Internal error to get film by id",
+			slog.String("error", err.Error()),
+		)
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		return
 	}
 
-	err = templateCache["filmPage"].ExecuteTemplate(w, "base", film)
+	buf := bytes.Buffer{}
+	err = templateCache["filmPage"].ExecuteTemplate(&buf, "base", f)
 	if err != nil {
+		log.ErrorContext(ctx, "Failed to render HTML template",
+			slog.String("error", err.Error()),
+		)
 		http.Error(w, "Error mounting html file", http.StatusInternalServerError)
 		return
 	}
+
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.WriteHeader(http.StatusOK)
+	buf.WriteTo(w)
 }
 
 func (h *Handler) DuelHandler(w http.ResponseWriter, r *http.Request) {

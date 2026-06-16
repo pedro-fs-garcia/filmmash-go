@@ -2,11 +2,9 @@ package film
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 	"filmmash/internal/database"
 	"fmt"
-	"log/slog"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
@@ -14,14 +12,12 @@ import (
 )
 
 type repository struct {
-	logger *slog.Logger
-	pool   *pgxpool.Pool
+	pool *pgxpool.Pool
 }
 
-func NewRepository(logger *slog.Logger, pool *pgxpool.Pool) *repository {
+func NewRepository(pool *pgxpool.Pool) *repository {
 	return &repository{
-		logger: logger.With(slog.String("component", "repository")),
-		pool:   pool,
+		pool: pool,
 	}
 }
 
@@ -50,11 +46,11 @@ func (r *repository) Insert(ctx context.Context, f *Film) error {
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
 			return fmt.Errorf(
-				"conflito de insercao de filme ou diretor (film_id: %v, director_id: %v): %w",
+				"[film.repository.Insert] conflito de insercao de filme ou diretor (film_id: %v, director_id: %v): %w",
 				f.Id, f.Director.Id, ErrDuplicateEntry,
 			)
 		}
-		return fmt.Errorf("Failed to insert film (id: %d): %w", f.Id, err)
+		return fmt.Errorf("[film.repository.Insert] Failed to insert film (id: %d): %w", f.Id, err)
 	}
 	return nil
 }
@@ -67,37 +63,16 @@ func (r *repository) GetFilm(ctx context.Context, id int) (Film, error) {
 	WHERE films.id = $1`
 
 	q := database.ExtractTx(ctx, r.pool)
-	rows, err := q.Query(ctx, query, id)
+
+	var f Film
+	err := q.QueryRow(ctx, query, id).Scan(&f.Id, &f.Title, &f.Year, &f.ImagePath, &f.Rating, &f.Director.Id, &f.Director.Name)
 	if err != nil {
-		if err == sql.ErrNoRows {
-			return Film{}, fmt.Errorf("Repository failed to get film (id: %d): %w", id, ErrNotFound)
+		if errors.Is(err, pgx.ErrNoRows) {
+			return Film{}, fmt.Errorf("[film.repository.GetFilm] Repository failed to get film (id: %d): %w", id, ErrNotFound)
 		}
-		return Film{}, fmt.Errorf("Internal database error to get film (id: %d): %w", id, err)
+		return Film{}, fmt.Errorf("[film.repository.GetFilm] Internal database error to get film (id: %d): %w", id, err)
 	}
-
-	defer rows.Close()
-
-	var film_id, release_year, director_id int
-	var rating float64
-	var title, image_path, director_name string
-	rows.Next()
-	err = rows.Scan(&film_id, &title, &release_year, &image_path, &rating, &director_id, &director_name)
-	if err != nil {
-		return Film{}, fmt.Errorf("Failed to map film data (id: %d): %w", id, err)
-
-	}
-	film := Film{
-		Id:    film_id,
-		Title: title,
-		Year:  release_year,
-		Director: Director{
-			Id:   director_id,
-			Name: director_name,
-		},
-		ImagePath: image_path,
-		Rating:    rating,
-	}
-	return film, nil
+	return f, nil
 }
 
 func (r *repository) GetRandomFilm(ctx context.Context) (Film, error) {
@@ -107,44 +82,42 @@ func (r *repository) GetRandomFilm(ctx context.Context) (Film, error) {
 	JOIN directors ON films.director_id = directors.id
 	ORDER BY RANDOM() LIMIT 1`
 
+	var f Film
 	q := database.ExtractTx(ctx, r.pool)
-	var film_id, release_year, director_id int
-	var rating float64
-	var title, image_path, director_name string
-	err := q.QueryRow(ctx, query).Scan(&film_id, &title, &release_year, &image_path, &rating, &director_id, &director_name)
+	err := q.QueryRow(ctx, query).Scan(&f.Id, &f.Title, &f.Year, &f.ImagePath, &f.Rating, &f.Director.Id, &f.Director.Name)
 	if err != nil {
-		r.logger.ErrorContext(ctx, "Failed to get random film",
-			slog.String("error", err.Error()),
-		)
-		return Film{}, err
+		if errors.Is(err, pgx.ErrNoRows) {
+			return Film{}, fmt.Errorf("[film.repository.GetRandomFilm] Empty database; no film available: %w", ErrNotFound)
+		}
+		return Film{}, fmt.Errorf("[film.repository.GetRandomFilm] Failed to get random film: %w", err)
 	}
 
-	film := Film{
-		Id:    film_id,
-		Title: title,
-		Year:  release_year,
-		Director: Director{
-			Id:   director_id,
-			Name: director_name,
-		},
-		ImagePath: image_path,
-		Rating:    rating,
-	}
-	return film, nil
+	return f, nil
 }
 
 func (r *repository) UpdateRating(ctx context.Context, f *Film) error {
 	query := "UPDATE films SET rating = $1 WHERE id = $2"
 
 	q := database.ExtractTx(ctx, r.pool)
-	_, err := q.Exec(ctx, query, f.Rating, f.Id)
+	tag, err := q.Exec(ctx, query, f.Rating, f.Id)
 	if err != nil {
-		return err
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) && pgErr.Code == "23514" {
+			return fmt.Errorf("[film.repository.UpdateRating] Could not update film rating due to invalid rating value (rating: %f): %w", f.Rating, ErrInvalidRating)
+		}
+		return fmt.Errorf("[film.repository.UpdateRating] Failed to upload film rating: %w", err)
+	}
+	if tag.RowsAffected() == 0 {
+		return fmt.Errorf("[film.repository.UpdateRating] No film was found to update rating (id: %d): %w", f.Id, ErrNotFound)
 	}
 	return nil
 }
 
 func (r *repository) UpdateRatings(ctx context.Context, films []*FilmRating) error {
+	if len(films) == 0 {
+		return nil
+	}
+
 	query := "UPDATE films SET rating = $1 WHERE id = $2"
 
 	batch := &pgx.Batch{}
@@ -154,27 +127,31 @@ func (r *repository) UpdateRatings(ctx context.Context, films []*FilmRating) err
 	q := database.ExtractTx(ctx, r.pool)
 	res := q.SendBatch(ctx, batch)
 	defer res.Close()
-	for range films {
-		if _, err := res.Exec(); err != nil {
-			r.logger.ErrorContext(ctx, "failed to update film ratings batch",
-				slog.String("error", err.Error()),
-			)
-			return err
+	for _, f := range films {
+		tag, err := res.Exec()
+
+		if err != nil {
+			var pgErr *pgconn.PgError
+			if errors.As(err, &pgErr) && pgErr.Code == "23514" {
+				return fmt.Errorf("[film.repository.UpdateRatings] Could not update film rating due to invalid rating value (rating: %f): %w", f.Rating, ErrInvalidRating)
+			}
+			return fmt.Errorf("[film.repository.UpdateRatings] Failed to upload film ratings batch: %w", err)
+		}
+
+		if tag.RowsAffected() == 0 {
+			return fmt.Errorf("[film.repository.UpdateRatings] No register affected on batch update: %w", ErrNotFound)
 		}
 	}
 	return nil
 }
 
-func (r *repository) CountTotal(ctx context.Context) (int, error) {
+func (r *repository) CountTotal(ctx context.Context) (int64, error) {
 	query := "SELECT COUNT(*) FROM films"
 	q := database.ExtractTx(ctx, r.pool)
-	var n int
+	var n int64
 	err := q.QueryRow(ctx, query).Scan(&n)
 	if err != nil {
-		r.logger.ErrorContext(ctx, "failed to count films",
-			slog.String("error", err.Error()),
-		)
-		return 0, err
+		return 0, fmt.Errorf("[film.repository.CountTotal] Failed to count films: %w", err)
 	}
 	return n, nil
 }

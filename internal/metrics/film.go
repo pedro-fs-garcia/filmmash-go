@@ -21,6 +21,6 @@ func (m *FilmMetrics) FilmInserted() {
 	m.total.Inc()
 }
 
-func (m *FilmMetrics) SeedCurrentTotal(n int) {
+func (m *FilmMetrics) SeedCurrentTotal(n int64) {
 	m.total.Set(float64(n))
 }

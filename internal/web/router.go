@@ -6,12 +6,14 @@ import (
 	"filmmash/internal/metrics"
 	"filmmash/internal/middleware"
 	"filmmash/internal/vote"
+	"log/slog"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 func InitRouter(
+	logger *slog.Logger,
 	metrics *metrics.Metrics,
 	filmService *film.Service,
 	duelService *duel.Service,
@@ -19,9 +21,11 @@ func InitRouter(
 ) *chi.Mux {
 	router := chi.NewRouter()
 	router.Use(middleware.RequestID)
+	router.Use(middleware.ResponseLogger(logger))
 	router.Use(metrics.HttpMetrics.MetricsMiddleware)
 
 	handler := NewHandler(
+		logger.With("component", "Handler"),
 		filmService,
 		duelService,
 		registerVoteUC,
