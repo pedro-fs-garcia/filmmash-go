@@ -5,7 +5,6 @@ import (
 	"filmmash/internal/database"
 	"filmmash/internal/film"
 	"filmmash/internal/metrics"
-	"log"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -18,10 +17,15 @@ type Service struct {
 	filmService *film.Service
 }
 
-func NewService(pool *pgxpool.Pool, filmService *film.Service) *Service {
+func NewService(metrics *metrics.DuelMetrics, pool *pgxpool.Pool, filmService *film.Service) *Service {
 	repo := NewRepository(pool)
 	txManager := database.NewTxManager(pool)
-	return &Service{repo: repo, txManager: txManager, filmService: filmService}
+	return &Service{
+		metrics:     metrics,
+		repo:        repo,
+		txManager:   txManager,
+		filmService: filmService,
+	}
 }
 
 func (s *Service) GetById(ctx context.Context, id uuid.UUID) (Duel, error) {
@@ -37,7 +41,6 @@ func (s *Service) CreateRandomDuel(ctx context.Context) (Duel, error) {
 	err := s.txManager.ExecTx(ctx, func(txCtx context.Context) error {
 		films, err := s.repo.SelectRandomFilms(txCtx)
 		if err != nil {
-			log.Println(err)
 			return err
 		}
 
@@ -45,11 +48,7 @@ func (s *Service) CreateRandomDuel(ctx context.Context) (Duel, error) {
 			FilmA: &films[0],
 			FilmB: &films[1],
 		}
-
-		if err = s.repo.Insert(txCtx, &duel); err != nil {
-			log.Println(err)
-		}
-		return err
+		return s.repo.Insert(txCtx, &duel)
 	})
 	if err != nil {
 		return Duel{}, err
@@ -62,8 +61,7 @@ func (s *Service) CreateRandomDuel(ctx context.Context) (Duel, error) {
 func (s *Service) ComposeDuel(ctx context.Context, winnerId int) (Duel, error) {
 	duel, err := s.repo.ComposeDuel(ctx, winnerId)
 	if err != nil {
-		log.Println(err)
-		return Duel{}, nil
+		return Duel{}, err
 	}
 	s.metrics.DuelCreated()
 	return duel, nil

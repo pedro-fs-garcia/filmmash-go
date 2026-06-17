@@ -7,7 +7,6 @@ import (
 	"filmmash/internal/film"
 	"filmmash/internal/metrics"
 	"fmt"
-	"log"
 	"strconv"
 
 	"github.com/google/uuid"
@@ -23,6 +22,7 @@ type RegisterVoteUC struct {
 
 func NewRegisterVoteUC(metrics *metrics.VoteMetrics, repo *repository, filmService *film.Service, duelService *duel.Service) *RegisterVoteUC {
 	return &RegisterVoteUC{
+		metrics:     metrics,
 		voteRepo:    repo,
 		txManager:   database.NewTxManager(repo.pool),
 		filmService: filmService,
@@ -35,7 +35,6 @@ func (uc *RegisterVoteUC) RegisterVote(ctx context.Context, duelId uuid.UUID, wi
 	err := uc.txManager.ExecTx(ctx, func(txCtx context.Context) error {
 		ratings, err := uc.duelService.GetDuelRatings(txCtx, duelId)
 		if err != nil {
-			log.Println(err)
 			return err
 		}
 
@@ -46,9 +45,7 @@ func (uc *RegisterVoteUC) RegisterVote(ctx context.Context, duelId uuid.UUID, wi
 		case ratings[1].Id:
 			winner, loser = ratings[1], ratings[0]
 		default:
-			err = fmt.Errorf("winner does not belong to duel %s", duelId.String())
-			log.Println(err)
-			return err
+			return fmt.Errorf("[vote.RegisterVoteUC.RegisterVote] film(id: %v) does not belong to duel(id: %v): %w", winnerId, duelId, ErrFilmNotInDuel)
 		}
 
 		newWinnerRating, newLoserRating := film.CalculateRatings(winner.Rating, loser.Rating)
@@ -61,7 +58,6 @@ func (uc *RegisterVoteUC) RegisterVote(ctx context.Context, duelId uuid.UUID, wi
 		}
 		err = uc.voteRepo.InsertVote(txCtx, &vote)
 		if err != nil {
-			log.Println(err)
 			return err
 		}
 
@@ -69,11 +65,10 @@ func (uc *RegisterVoteUC) RegisterVote(ctx context.Context, duelId uuid.UUID, wi
 			{Id: winnerId, Rating: newWinnerRating},
 			{Id: loser.Id, Rating: newLoserRating},
 		}
-		err = uc.filmService.UpdateRatings(txCtx, filmRatings)
-		return err
+		return uc.filmService.UpdateRatings(txCtx, filmRatings)
 	})
 	if err != nil {
-		return Vote{}, err
+		return Vote{}, fmt.Errorf("[vote.RegisterVoteUC.RegisterVote] %w", err)
 	}
 
 	uc.metrics.VoteRegistered(strconv.Itoa(vote.WinnerID))

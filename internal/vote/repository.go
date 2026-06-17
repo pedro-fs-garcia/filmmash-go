@@ -2,8 +2,11 @@ package vote
 
 import (
 	"context"
+	"errors"
 	"filmmash/internal/database"
+	"fmt"
 
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -22,16 +25,27 @@ func (r *repository) InsertVote(ctx context.Context, vote *Vote) error {
 	RETURNING id
 	`
 	q := database.ExtractTx(ctx, r.pool)
-	return q.QueryRow(ctx, query,
+	err := q.QueryRow(ctx, query,
 		vote.DuelId,
 		vote.WinnerID, vote.LoserId, vote.WinnerRatingAfter, vote.LoserRatingAfter,
 	).Scan(&vote.Id)
+	if err != nil {
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
+			return fmt.Errorf("[vote.repository.InsertVote] conflict inserting vote: %w", ErrDuplicateEntry)
+		}
+		return fmt.Errorf("[vote.repository.InsertVote] Failed to insert vote: %w", err)
+	}
+	return nil
 }
 
-func (r *repository) CurrrentTotal(ctx context.Context) (int, error) {
+func (r *repository) CurrentTotal(ctx context.Context) (int, error) {
 	query := "SELECT COUNT(*) FROM votes"
 	var n int
 	q := database.ExtractTx(ctx, r.pool)
 	err := q.QueryRow(ctx, query).Scan(&n)
-	return n, err
+	if err != nil {
+		return 0, fmt.Errorf("[vote.repository.CurrentTotal] failed to count total current votes: %w", err)
+	}
+	return n, nil
 }

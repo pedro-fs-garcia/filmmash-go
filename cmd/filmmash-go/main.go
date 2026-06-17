@@ -53,8 +53,7 @@ func run() error {
 
 	filmService := film.NewService(pool)
 
-	// duelLogger := logger.With(slog.String("package", "duel"))
-	duelService := duel.NewService(pool, filmService)
+	duelService := duel.NewService(m.DuelMetrics, pool, filmService)
 
 	voteRepo := vote.NewRepository(pool)
 	registerVoteUC := vote.NewRegisterVoteUC(m.VoteMetrics, voteRepo, filmService, duelService)
@@ -73,7 +72,7 @@ func run() error {
 	}
 	m.FilmMetrics.SeedCurrentTotal(totalFilms)
 
-	totalVotes, err := voteRepo.CurrrentTotal(ctx)
+	totalVotes, err := voteRepo.CurrentTotal(ctx)
 	if err != nil {
 		panic(err)
 	}

@@ -2,12 +2,14 @@ package duel
 
 import (
 	"context"
+	"errors"
 	"filmmash/internal/database"
 	"filmmash/internal/film"
 	"fmt"
-	"log"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -26,7 +28,17 @@ func (r *repository) Insert(ctx context.Context, duel *Duel) error {
 	RETURNING id`
 
 	q := database.ExtractTx(ctx, r.pool)
-	return q.QueryRow(ctx, query, duel.FilmA.Id, duel.FilmB.Id).Scan(&duel.Id)
+	err := q.QueryRow(ctx, query, duel.FilmA.Id, duel.FilmB.Id).Scan(&duel.Id)
+	if err != nil {
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
+			return fmt.Errorf(
+				"[duel.repository.Insert] conflict inserting duel: %w", ErrDuplicateEntry,
+			)
+		}
+		return fmt.Errorf("[duel.repository.Insert] Failed to insert duel: %w", err)
+	}
+	return nil
 }
 
 func (r *repository) GetById(ctx context.Context, id uuid.UUID) (Duel, error) {
@@ -43,42 +55,29 @@ func (r *repository) GetById(ctx context.Context, id uuid.UUID) (Duel, error) {
 	q := database.ExtractTx(ctx, r.pool)
 	rows, err := q.Query(ctx, query, id)
 	if err != nil {
-		log.Println(err)
-		return Duel{}, err
+		return Duel{}, fmt.Errorf("[duel.repository.GetById] Error querying Duel(id: %v): %w", id, err)
 	}
 	defer rows.Close()
 
 	var films [2]film.Film
 	i := 0
 	for rows.Next() {
-		var film_id, release_year, director_id int
-		var rating float64
-		var title, image_path, director_name string
-		err = rows.Scan(&film_id, &title, &release_year, &image_path, &rating, &director_id, &director_name)
+		var f film.Film
+		err = rows.Scan(&f.Id, &f.Title, &f.Year, &f.ImagePath, &f.Rating, &f.Director.Id, &f.Director.Name)
 		if err != nil {
-			log.Println(err)
-			return Duel{}, err
+			return Duel{}, fmt.Errorf("[duel.repository.GetById] Internal database error to get Duel(id: %v): %w", id, err)
 		}
 
-		films[i] = film.Film{
-			Id:    film_id,
-			Title: title,
-			Year:  release_year,
-			Director: film.Director{
-				Id:   director_id,
-				Name: director_name,
-			},
-			ImagePath: image_path,
-			Rating:    rating,
-		}
-
+		films[i] = f
 		i++
 	}
 
 	if err = rows.Err(); err != nil {
-		return Duel{}, err
+		return Duel{}, fmt.Errorf("[duel.repository.GetById] iterating rows for Duel(id: %v): %w", id, err)
 	}
-
+	if i < 2 {
+		return Duel{}, fmt.Errorf("[duel.repository.GetById] Could not find Duel(id: %v): %w", id, ErrNotFound)
+	}
 	return Duel{
 		Id:    id,
 		FilmA: &films[0],
@@ -101,35 +100,28 @@ func (r *repository) GetDuelRatingsForUpdate(ctx context.Context, id uuid.UUID) 
 	q := database.ExtractTx(ctx, r.pool)
 	rows, err := q.Query(ctx, query, id)
 	if err != nil {
-		log.Println(err)
-		return [2]film.FilmRating{}, err
+		return [2]film.FilmRating{}, fmt.Errorf("[duel.repository.GetDuelRatingsForUpdate] Error querying Duel(id: %v) Ratings: %w", id, err)
 	}
 	defer rows.Close()
 
 	var ratings [2]film.FilmRating
 	i := 0
 	for rows.Next() {
-		var film_id int
-		var rating float64
-		err = rows.Scan(&film_id, &rating)
+		var fr film.FilmRating
+		err = rows.Scan(&fr.Id, &fr.Rating)
 		if err != nil {
-			log.Println(err)
-			return [2]film.FilmRating{}, err
+			return [2]film.FilmRating{}, fmt.Errorf("[duel.repository.GetDuelRatingsForUpdate] Internal database error to get Duel(id: %v) Ratings: %w", id, err)
 		}
-
-		ratings[i] = film.FilmRating{
-			Id:     film_id,
-			Rating: rating,
-		}
-
+		ratings[i] = fr
 		i++
 	}
 
 	if err = rows.Err(); err != nil {
+		err = fmt.Errorf("[duel.repository.GetDuelRatingsForUpdate] iterating rows for Duel(id: %v) Ratings: %w", id, err)
 		return [2]film.FilmRating{}, err
 	}
 	if i < 2 {
-		return [2]film.FilmRating{}, fmt.Errorf("duel %s does not have two films", id)
+		return [2]film.FilmRating{}, fmt.Errorf("[duel.repository.GetDuelRatingsForUpdate] duel %s does not have two films: %w", id, ErrInvalidDuel)
 	}
 	return ratings, nil
 }
@@ -144,42 +136,26 @@ func (r *repository) SelectRandomFilms(ctx context.Context) ([2]film.Film, error
 	q := database.ExtractTx(ctx, r.pool)
 	filRows, err := q.Query(ctx, query)
 	if err != nil {
-		log.Println(err)
-		return [2]film.Film{}, err
+		return [2]film.Film{}, fmt.Errorf("[duel.repository.SelectRandomFilms] Error querying for random films: %w", err)
 	}
 	defer filRows.Close()
 
 	var films [2]film.Film
 	i := 0
 	for filRows.Next() {
-		var film_id, release_year, director_id int
-		var rating float64
-		var title, image_path, director_name string
-		err = filRows.Scan(&film_id, &title, &release_year, &image_path, &rating, &director_id, &director_name)
+		var f film.Film
+		err = filRows.Scan(&f.Id, &f.Title, &f.Year, &f.ImagePath, &f.Rating, &f.Director.Id, &f.Director.Name)
 		if err != nil {
-			log.Println(err)
-			return [2]film.Film{}, err
+			return [2]film.Film{}, fmt.Errorf("[duel.repository.SelectRandomFilms] Internal database error to get random films: %w", err)
 		}
-
-		films[i] = film.Film{
-			Id:    film_id,
-			Title: title,
-			Year:  release_year,
-			Director: film.Director{
-				Id:   director_id,
-				Name: director_name,
-			},
-			ImagePath: image_path,
-			Rating:    rating,
-		}
-
+		films[i] = f
 		i++
 	}
 	if err = filRows.Err(); err != nil {
-		return [2]film.Film{}, err
+		return [2]film.Film{}, fmt.Errorf("[duel.repository.SelectRandomFilms] iterating rows for random films: %w", err)
 	}
 	if i < 2 {
-		return [2]film.Film{}, fmt.Errorf("not enough films for a duel: got %d", i)
+		return [2]film.Film{}, fmt.Errorf("[duel.repository.SelectRandomFilms] not enough films for a duel: got %d: %w", i, ErrNotEnoughFilms)
 	}
 	return films, nil
 }
@@ -204,25 +180,21 @@ func (r *repository) ComposeDuel(ctx context.Context, winnerId int) (Duel, error
 	JOIN films fb ON fb.id = i.film_b_id JOIN directors db ON db.id = fb.director_id
 	`
 
-	var duelId uuid.UUID
-	var fa, fb film.Film
-
+	d := Duel{FilmA: &film.Film{}, FilmB: &film.Film{}}
 	q := database.ExtractTx(ctx, r.pool)
 	err := q.QueryRow(ctx, query, winnerId).Scan(
-		&duelId,
-		&fa.Id, &fa.Title, &fa.Year, &fa.ImagePath, &fa.Rating, &fa.Director.Id, &fa.Director.Name,
-		&fb.Id, &fb.Title, &fb.Year, &fb.ImagePath, &fb.Rating, &fb.Director.Id, &fb.Director.Name,
+		&d.Id,
+		&d.FilmA.Id, &d.FilmA.Title, &d.FilmA.Year, &d.FilmA.ImagePath, &d.FilmA.Rating, &d.FilmA.Director.Id, &d.FilmA.Director.Name,
+		&d.FilmB.Id, &d.FilmB.Title, &d.FilmB.Year, &d.FilmB.ImagePath, &d.FilmB.Rating, &d.FilmB.Director.Id, &d.FilmB.Director.Name,
 	)
 	if err != nil {
-		log.Println(err)
-		return Duel{}, err
+		if errors.Is(err, pgx.ErrNoRows) {
+			return Duel{}, fmt.Errorf("[duel.repository.ComposeDuel] no opponent film available for winner(id: %v): %w", winnerId, ErrNotEnoughFilms)
+		}
+		return Duel{}, fmt.Errorf("[duel.repository.ComposeDuel] composing duel for winner(id: %v): %w", winnerId, err)
 	}
 
-	return Duel{
-		Id:    duelId,
-		FilmA: &fa,
-		FilmB: &fb,
-	}, nil
+	return d, nil
 }
 
 func (r *repository) CountPending(ctx context.Context) (int, error) {
@@ -233,5 +205,8 @@ func (r *repository) CountPending(ctx context.Context) (int, error) {
 	var n int
 	q := database.ExtractTx(ctx, r.pool)
 	err := q.QueryRow(ctx, query).Scan(&n)
-	return n, err
+	if err != nil {
+		return 0, fmt.Errorf("[duel.repository.CountPending] counting pending duels: %w", err)
+	}
+	return n, nil
 }

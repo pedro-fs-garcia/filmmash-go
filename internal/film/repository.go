@@ -46,7 +46,7 @@ func (r *repository) Insert(ctx context.Context, f *Film) error {
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
 			return fmt.Errorf(
-				"[film.repository.Insert] conflito de insercao de filme ou diretor (film_id: %v, director_id: %v): %w",
+				"[film.repository.Insert] conflict inserting film or director (film_id: %v, director_id: %v): %w",
 				f.Id, f.Director.Id, ErrDuplicateEntry,
 			)
 		}

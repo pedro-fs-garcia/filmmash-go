@@ -10,9 +10,9 @@ import (
 	"filmmash/internal/vote"
 	"fmt"
 	"html/template"
-	"log"
 	"log/slog"
 	"net/http"
+	"runtime/debug"
 	"strconv"
 	"time"
 
@@ -105,58 +105,108 @@ func (h *Handler) FilmHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) DuelHandler(w http.ResponseWriter, r *http.Request) {
-	duel, err := h.duelService.CreateRandomDuel(r.Context())
+	ctx := r.Context()
+	reqId := middleware.GetRequestID(ctx)
+	log := h.logger.With(slog.String("method", "DuelHandler"), slog.String("request_id", reqId))
+
+	d, err := h.duelService.CreateRandomDuel(ctx)
 	if err != nil {
-		log.Println(err)
-		http.Error(w, "Could not fetch the films for a duel.", http.StatusExpectationFailed)
+		if errors.Is(err, duel.ErrNotEnoughFilms) {
+			log.ErrorContext(ctx, "Duel could not fetch films for a duel",
+				slog.String("error", err.Error()),
+			)
+			http.Error(w, "Could not fetch films for a duel", http.StatusServiceUnavailable)
+			return
+		}
+		log.ErrorContext(ctx, "failed to create duel", slog.String("error", err.Error()))
+		http.Error(w, "Could not fetch the films for a duel.", http.StatusInternalServerError)
 		return
 	}
 
-	err = templateCache["duelPage"].ExecuteTemplate(w, "base", duel)
+	buf := bytes.Buffer{}
+	err = templateCache["duelPage"].ExecuteTemplate(&buf, "base", d)
 	if err != nil {
-		log.Println(err)
+		log.ErrorContext(ctx, "Failed to render HTML template",
+			slog.String("error", err.Error()),
+		)
 		http.Error(w, "Error mounting HTML file", http.StatusInternalServerError)
 		return
 	}
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.WriteHeader(http.StatusOK)
+	buf.WriteTo(w)
 }
 
 func (h *Handler) DuelResultHandler(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	reqId := middleware.GetRequestID(ctx)
+	log := h.logger.With(slog.String("method", "DuelResultHandler"), slog.String("request_id", reqId))
+
 	duelId, err := uuid.Parse(chi.URLParam(r, "duel_id"))
 	if err != nil {
-		log.Println(err)
+		log.WarnContext(ctx, "failed to parse duel id from URL",
+			slog.String("error", err.Error()),
+			slog.String("raw_id", chi.URLParam(r, "duel_id")),
+		)
 		http.Error(w, "Invalid duel could not be parsed", http.StatusBadRequest)
 		return
 	}
+
 	winnerId, err := strconv.Atoi(r.FormValue("winner"))
 	if err != nil {
-		log.Println(err)
+		log.WarnContext(ctx, "failed to parse duel winner id from URL",
+			slog.String("error", err.Error()),
+			slog.String("raw_id", r.FormValue("winner")),
+		)
 		http.Error(w, "Invalid winner could not be parsed", http.StatusBadRequest)
 		return
 	}
 
-	fmt.Println(duelId, winnerId)
-
 	go func() {
+		defer func() {
+			if rec := recover(); rec != nil {
+				log.ErrorContext(r.Context(), "recovered from panic in async vote",
+					slog.String("duel_id", duelId.String()),
+					slog.Any("panic", rec),
+					slog.String("stack", string(debug.Stack())),
+				)
+			}
+		}()
+
 		ctx, cancel := context.WithTimeout(context.WithoutCancel(r.Context()), 5*time.Second)
 		defer cancel()
 
 		_, err := h.registerVoteUc.RegisterVote(ctx, duelId, winnerId)
 		if err != nil {
-			log.Printf("Failed to register async vote (duelId: %v): %v", duelId, err)
+			log.ErrorContext(ctx, "Failed to register async vote",
+				slog.String("duel_id", duelId.String()),
+				slog.String("error", err.Error()),
+			)
 		}
 	}()
 
-	duel, err := h.duelService.ComposeDuel(r.Context(), winnerId)
+	d, err := h.duelService.ComposeDuel(r.Context(), winnerId)
 	if err != nil {
-		log.Println(err)
-		http.Error(w, "Could not fetch the films for a duel.", http.StatusExpectationFailed)
+		if errors.Is(err, duel.ErrNotEnoughFilms) {
+			log.ErrorContext(ctx, "Not enough films to compose a duel",
+				slog.String("error", err.Error()),
+			)
+			http.Error(w, "Could not fetch the films for a duel.", http.StatusServiceUnavailable)
+			return
+		}
+		log.ErrorContext(ctx, "Duel could not be composed", slog.String("error", err.Error()))
+		http.Error(w, "Duel could not be composed", http.StatusInternalServerError)
 		return
 	}
 
-	err = templateCache["duelCard"].ExecuteTemplate(w, "duelCard", duel)
+	buf := bytes.Buffer{}
+	err = templateCache["duelCard"].ExecuteTemplate(&buf, "duelCard", d)
 	if err != nil {
-		log.Println(err)
+		log.ErrorContext(ctx, "Failed to render HTML template", slog.String("error", err.Error()))
 		http.Error(w, "Error mounting HTML file", http.StatusInternalServerError)
 		return
 	}
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.WriteHeader(http.StatusOK)
+	buf.WriteTo(w)
 }

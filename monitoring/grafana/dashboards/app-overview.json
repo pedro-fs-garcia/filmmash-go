@@ -314,7 +314,7 @@
     {
       "datasource": { "type": "loki", "uid": "loki" },
       "fieldConfig": { "defaults": {}, "overrides": [] },
-      "gridPos": { "h": 12, "w": 24, "x": 0, "y": 16 },
+      "gridPos": { "h": 48, "w": 24, "x": 0, "y": 16 },
       "id": 4,
       "options": {
         "dedupStrategy": "none",
@@ -329,7 +329,7 @@
       "targets": [
         {
           "datasource": { "type": "loki", "uid": "loki" },
-          "expr": "{service=\"app\"}",
+          "expr": "{service=\"app\"} | json | line_format \"{{ if .msg }}{{ if .package }}{{ .package }}{{ if .component }}.{{ .component }}{{ if .method }}.{{ .method }}{{ end }}{{ end }}{{ else }}{{ .source_function }}{{ end }} | {{ .msg }}{{ if .path }} {{ .method }} {{ .path }}{{ end }}{{ if .status }} -> {{ .status }}{{ end }}{{ if .duel_id }} duel={{ .duel_id }}{{ end }}{{ if .error }} error={{ .error }}{{ end }}{{ if .request_id }} req={{ .request_id }}{{ end }}{{ else }}{{ __line__ }}{{ end }}\"",
           "refId": "A"
         }
       ],

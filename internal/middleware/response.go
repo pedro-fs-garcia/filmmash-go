@@ -8,9 +8,18 @@ import (
 	chimiddleware "github.com/go-chi/chi/v5/middleware"
 )
 
+var skipLogPaths = map[string]bool{
+	"/metrics": true,
+}
+
 func ResponseLogger(logger *slog.Logger) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if skipLogPaths[r.URL.Path] {
+				next.ServeHTTP(w, r)
+				return
+			}
+
 			start := time.Now()
 			ww := chimiddleware.NewWrapResponseWriter(w, r.ProtoMajor)
 
@@ -27,7 +36,7 @@ func ResponseLogger(logger *slog.Logger) func(http.Handler) http.Handler {
 				slog.String("path", r.URL.Path),
 				slog.Int("status", status),
 				slog.Int("bytes", ww.BytesWritten()),
-				slog.Duration("duration", time.Since(start)),
+				slog.Duration("duration_ns", time.Since(start)),
 			)
 		})
 	}

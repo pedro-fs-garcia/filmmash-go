@@ -20,6 +20,7 @@ func InitRouter(
 	registerVoteUC *vote.RegisterVoteUC,
 ) *chi.Mux {
 	router := chi.NewRouter()
+	router.Use(middleware.Recoverer(logger))
 	router.Use(middleware.RequestID)
 	router.Use(middleware.ResponseLogger(logger))
 	router.Use(metrics.HttpMetrics.MetricsMiddleware)
