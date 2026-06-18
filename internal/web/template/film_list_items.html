@@ -1,0 +1,11 @@
+{{ define "filmListItems" }}
+{{ range .Films }}
+    {{ template "filmListItem" . }}
+{{ end }}
+{{ if .Films }}
+<div class="film-list-sentinel"
+    hx-get="/ui/films?size={{ .Next.Size }}&last_seen_id={{ .Next.LastSeenId }}&last_seen_rating={{ .Next.LastSeenRating }}"
+    hx-trigger="revealed"
+    hx-swap="outerHTML"></div>
+{{ end }}
+{{ end }}

@@ -18,3 +18,14 @@ type FilmRating struct {
 	Id     int
 	Rating float64
 }
+
+type PaginationParameters struct {
+	Size           int
+	LastSeenId     int
+	LastSeenRating float64
+}
+
+type PaginatedResponse struct {
+	Films []Film
+	Next  PaginationParameters
+}

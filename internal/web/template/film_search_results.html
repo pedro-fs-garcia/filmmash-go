@@ -1,0 +1,7 @@
+{{ define "filmSearchResults" }}
+{{ range . }}
+    {{ template "filmListItem" . }}
+{{ else }}
+<p class="film-list-empty">No films found.</p>
+{{ end }}
+{{ end }}

@@ -1,0 +1,20 @@
+{{ template "base" . }}
+
+{{ define "content" }}
+
+<h1>FilmMash</h1>
+
+<form class="film-search" role="search" onsubmit="return false">
+    <input type="search" name="film_name" placeholder="Search films by title…"
+        autocomplete="off"
+        hx-get="/ui/films/search"
+        hx-trigger="input[target.value.trim().length >= 3] changed delay:300ms, search[target.value.trim().length >= 3]"
+        hx-target="#film-list"
+        hx-swap="innerHTML">
+</form>
+
+<div id="film-list">
+    {{ template "filmListItems" . }}
+</div>
+
+{{ end }}

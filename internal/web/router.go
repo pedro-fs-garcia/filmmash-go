@@ -36,6 +36,8 @@ func InitRouter(
 
 	router.Route("/ui", func(r chi.Router) {
 		r.Get("/", handler.DuelHandler)
+		r.Get("/films", handler.FilmsListHandler)
+		r.Get("/films/search", handler.SearchFilmsHandler)
 		r.Get("/film/{id}", handler.FilmHandler)
 		r.Post("/duel/{duel_id}/result", handler.DuelResultHandler)
 	})

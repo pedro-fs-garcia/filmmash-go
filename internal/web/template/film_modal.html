@@ -1,0 +1,12 @@
+{{ define "filmModal" }}
+<div class="modal-overlay" onclick="document.getElementById('modal').innerHTML=''">
+    <div class="modal-dialog" onclick="event.stopPropagation()">
+        <button class="modal-close" aria-label="Close"
+            onclick="document.getElementById('modal').innerHTML=''">&times;</button>
+        <h1>{{ .Title }} ({{ .Year }})</h1>
+        <h2>{{ .Director.Name }}</h2>
+        <img src="https://image.tmdb.org/t/p/w500{{ .ImagePath }}" alt="{{ .Title }}">
+        <h3 class="film-rating">{{ printf "%.2f" .Rating }}</h3>
+    </div>
+</div>
+{{ end }}

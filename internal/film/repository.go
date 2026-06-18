@@ -95,6 +95,79 @@ func (r *repository) GetRandomFilm(ctx context.Context) (Film, error) {
 	return f, nil
 }
 
+func (r *repository) GetFilmsPaginatedByRating(ctx context.Context, pars PaginationParameters) ([]Film, error) {
+	var (
+		where string
+		args  []any
+	)
+
+	if pars.LastSeenId != 0 {
+		where = "WHERE (films.rating, films.id) < ($2, $3)"
+		args = []any{pars.Size, pars.LastSeenRating, pars.LastSeenId}
+	} else {
+		args = []any{pars.Size}
+	}
+
+	query := fmt.Sprintf(`
+	SELECT films.id, title, release_year, image_path, rating, directors.id, directors.name
+	FROM films
+	JOIN directors ON films.director_id = directors.id
+	%s
+	ORDER BY films.rating DESC, films.id DESC
+	LIMIT $1
+	`, where)
+
+	q := database.ExtractTx(ctx, r.pool)
+	rows, err := q.Query(ctx, query, args...)
+	if err != nil {
+		return []Film{}, fmt.Errorf("[film.repository.GetFilmsPaginated] Error querying paginated films: %w", err)
+	}
+	defer rows.Close()
+
+	var films []Film
+	for rows.Next() {
+		var f Film
+		err = rows.Scan(&f.Id, &f.Title, &f.Year, &f.ImagePath, &f.Rating, &f.Director.Id, &f.Director.Name)
+		if err != nil {
+			return []Film{}, fmt.Errorf("[film.repository.GetFilmsPaginated] Internal database error to get paginated films: %w", err)
+		}
+		films = append(films, f)
+	}
+	if err = rows.Err(); err != nil {
+		return []Film{}, fmt.Errorf("[film.repository.GetFilmsPaginated] iterating rows: %w", err)
+	}
+	return films, nil
+}
+
+func (r *repository) SearchFilmByName(ctx context.Context, search string) ([]Film, error) {
+	query := `
+	SELECT films.id, title, release_year, image_path, rating, directors.id, directors.name
+	FROM films
+	JOIN directors ON films.director_id = directors.id
+	WHERE films.title ILIKE '%' || $1 || '%'
+	`
+	q := database.ExtractTx(ctx, r.pool)
+	rows, err := q.Query(ctx, query, search)
+	if err != nil {
+		return []Film{}, fmt.Errorf("[film.repository.SearchFilmByName] error querying search film by name: %w", err)
+	}
+	defer rows.Close()
+
+	var films []Film
+	for rows.Next() {
+		var f Film
+		err = rows.Scan(&f.Id, &f.Title, &f.Year, &f.ImagePath, &f.Rating, &f.Director.Id, &f.Director.Name)
+		if err != nil {
+			return []Film{}, fmt.Errorf("[film.repository.SearchFilmByName] internal database error to search film by name: %w", err)
+		}
+		films = append(films, f)
+	}
+	if err = rows.Err(); err != nil {
+		return []Film{}, fmt.Errorf("[film.repository.SearchFilmByName] iterating rows: %w", err)
+	}
+	return films, nil
+}
+
 func (r *repository) UpdateRating(ctx context.Context, f *Film) error {
 	query := "UPDATE films SET rating = $1 WHERE id = $2"
 

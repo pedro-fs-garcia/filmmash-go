@@ -37,6 +37,29 @@ func (s *Service) GetRandomFilm(ctx context.Context) (Film, error) {
 	return film, nil
 }
 
+func (s *Service) GetFilmsPaginatedByRating(ctx context.Context, pars PaginationParameters) (PaginatedResponse, error) {
+	films, err := s.repo.GetFilmsPaginatedByRating(ctx, pars)
+	if err != nil {
+		return PaginatedResponse{}, err
+	}
+	if len(films) == 0 {
+		return PaginatedResponse{}, nil
+	}
+	last := films[len(films)-1]
+	return PaginatedResponse{
+		Films: films,
+		Next: PaginationParameters{
+			Size:           pars.Size,
+			LastSeenId:     last.Id,
+			LastSeenRating: last.Rating,
+		},
+	}, nil
+}
+
+func (s *Service) SearchFilmByName(ctx context.Context, search string) ([]Film, error) {
+	return s.repo.SearchFilmByName(ctx, search)
+}
+
 func (s *Service) UpdateRatings(ctx context.Context, films []*FilmRating) error {
 	if len(films) == 0 {
 		return nil
