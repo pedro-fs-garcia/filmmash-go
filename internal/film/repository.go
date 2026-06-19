@@ -2,12 +2,10 @@ package film
 
 import (
 	"context"
-	"errors"
 	"filmmash/internal/database"
 	"fmt"
 
 	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -21,12 +19,18 @@ func NewRepository(pool *pgxpool.Pool) *repository {
 	}
 }
 
-func (r *repository) Insert(ctx context.Context, f *Film) error {
+func (r *repository) InsertFilm(ctx context.Context, f *Film) error {
 	query := `
-	WITH director AS (
+	WITH new_director AS (
 		INSERT INTO directors (id, name)
 		VALUES ($1, $2)
+		ON CONFLICT DO NOTHING
 		RETURNING id AS director_id
+	),
+	director AS (
+		SELECT director_id FROM new_director
+		UNION ALL
+		SELECT id AS director_id FROM directors WHERE id = $1
 	)
 	INSERT INTO films (id, title, release_year, director_id, image_path)
 	SELECT $3, $4, $5, director_id, $6 FROM director
@@ -42,17 +46,36 @@ func (r *repository) Insert(ctx context.Context, f *Film) error {
 		f.Year,
 		f.ImagePath,
 	).Scan(&f.Id)
+	return parseDBError("inserting film", err)
+}
+
+func (r *repository) InsertDirector(ctx context.Context, d *Director) error {
+	query := `
+	INSERT INTO directors (id, name)
+	VALUES ($1, $2)
+	RETURNING id
+	`
+	q := database.ExtractTx(ctx, r.pool)
+	err := q.QueryRow(ctx, query, d.Id, d.Name).Scan(&d.Id)
+
+	return parseDBError(
+		fmt.Sprintf("inserting director (id: %v)", d.Id),
+		err,
+	)
+}
+
+func (r *repository) GetDirector(ctx context.Context, id int) (Director, error) {
+	query := "SELECT id, name FROM directors WHERE id = $1"
+	q := database.ExtractTx(ctx, r.pool)
+	d := Director{}
+	err := q.QueryRow(ctx, query, id).Scan(&d.Id, &d.Name)
 	if err != nil {
-		var pgErr *pgconn.PgError
-		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
-			return fmt.Errorf(
-				"[film.repository.Insert] conflict inserting film or director (film_id: %v, director_id: %v): %w",
-				f.Id, f.Director.Id, ErrDuplicateEntry,
-			)
-		}
-		return fmt.Errorf("[film.repository.Insert] Failed to insert film (id: %d): %w", f.Id, err)
+		return Director{}, parseDBError(
+			fmt.Sprintf("getting director by id (id: %d)", id),
+			err,
+		)
 	}
-	return nil
+	return d, nil
 }
 
 func (r *repository) GetFilm(ctx context.Context, id int) (Film, error) {
@@ -65,12 +88,15 @@ func (r *repository) GetFilm(ctx context.Context, id int) (Film, error) {
 	q := database.ExtractTx(ctx, r.pool)
 
 	var f Film
-	err := q.QueryRow(ctx, query, id).Scan(&f.Id, &f.Title, &f.Year, &f.ImagePath, &f.Rating, &f.Director.Id, &f.Director.Name)
+	err := q.QueryRow(ctx, query, id).Scan(
+		&f.Id, &f.Title, &f.Year, &f.ImagePath,
+		&f.Rating, &f.Director.Id, &f.Director.Name,
+	)
 	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			return Film{}, fmt.Errorf("[film.repository.GetFilm] Repository failed to get film (id: %d): %w", id, ErrNotFound)
-		}
-		return Film{}, fmt.Errorf("[film.repository.GetFilm] Internal database error to get film (id: %d): %w", id, err)
+		return Film{}, parseDBError(
+			fmt.Sprintf("getting film by id (id: %d)", id),
+			err,
+		)
 	}
 	return f, nil
 }
@@ -86,10 +112,10 @@ func (r *repository) GetRandomFilm(ctx context.Context) (Film, error) {
 	q := database.ExtractTx(ctx, r.pool)
 	err := q.QueryRow(ctx, query).Scan(&f.Id, &f.Title, &f.Year, &f.ImagePath, &f.Rating, &f.Director.Id, &f.Director.Name)
 	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			return Film{}, fmt.Errorf("[film.repository.GetRandomFilm] Empty database; no film available: %w", ErrNotFound)
-		}
-		return Film{}, fmt.Errorf("[film.repository.GetRandomFilm] Failed to get random film: %w", err)
+		return Film{}, parseDBError(
+			"getting random film",
+			err,
+		)
 	}
 
 	return f, nil
@@ -120,7 +146,7 @@ func (r *repository) GetFilmsPaginatedByRating(ctx context.Context, pars Paginat
 	q := database.ExtractTx(ctx, r.pool)
 	rows, err := q.Query(ctx, query, args...)
 	if err != nil {
-		return []Film{}, fmt.Errorf("[film.repository.GetFilmsPaginated] Error querying paginated films: %w", err)
+		return nil, parseDBError("querying paginated films", err)
 	}
 	defer rows.Close()
 
@@ -129,12 +155,12 @@ func (r *repository) GetFilmsPaginatedByRating(ctx context.Context, pars Paginat
 		var f Film
 		err = rows.Scan(&f.Id, &f.Title, &f.Year, &f.ImagePath, &f.Rating, &f.Director.Id, &f.Director.Name)
 		if err != nil {
-			return []Film{}, fmt.Errorf("[film.repository.GetFilmsPaginated] Internal database error to get paginated films: %w", err)
+			return nil, parseDBError("scanning film row", err)
 		}
 		films = append(films, f)
 	}
 	if err = rows.Err(); err != nil {
-		return []Film{}, fmt.Errorf("[film.repository.GetFilmsPaginated] iterating rows: %w", err)
+		return nil, parseDBError("iterating rows", err)
 	}
 	return films, nil
 }
@@ -149,7 +175,7 @@ func (r *repository) SearchFilmByName(ctx context.Context, search string) ([]Fil
 	q := database.ExtractTx(ctx, r.pool)
 	rows, err := q.Query(ctx, query, search)
 	if err != nil {
-		return []Film{}, fmt.Errorf("[film.repository.SearchFilmByName] error querying search film by name: %w", err)
+		return nil, parseDBError("querying films by name", err)
 	}
 	defer rows.Close()
 
@@ -158,12 +184,12 @@ func (r *repository) SearchFilmByName(ctx context.Context, search string) ([]Fil
 		var f Film
 		err = rows.Scan(&f.Id, &f.Title, &f.Year, &f.ImagePath, &f.Rating, &f.Director.Id, &f.Director.Name)
 		if err != nil {
-			return []Film{}, fmt.Errorf("[film.repository.SearchFilmByName] internal database error to search film by name: %w", err)
+			return nil, parseDBError("scanning row output to film", err)
 		}
 		films = append(films, f)
 	}
 	if err = rows.Err(); err != nil {
-		return []Film{}, fmt.Errorf("[film.repository.SearchFilmByName] iterating rows: %w", err)
+		return nil, parseDBError("iterating rows", err)
 	}
 	return films, nil
 }
@@ -174,14 +200,10 @@ func (r *repository) UpdateRating(ctx context.Context, f *Film) error {
 	q := database.ExtractTx(ctx, r.pool)
 	tag, err := q.Exec(ctx, query, f.Rating, f.Id)
 	if err != nil {
-		var pgErr *pgconn.PgError
-		if errors.As(err, &pgErr) && pgErr.Code == "23514" {
-			return fmt.Errorf("[film.repository.UpdateRating] Could not update film rating due to invalid rating value (rating: %f): %w", f.Rating, ErrInvalidRating)
-		}
-		return fmt.Errorf("[film.repository.UpdateRating] Failed to upload film rating: %w", err)
+		return parseDBError(fmt.Sprintf("updating rating for film(id: %d)", f.Id), err)
 	}
 	if tag.RowsAffected() == 0 {
-		return fmt.Errorf("[film.repository.UpdateRating] No film was found to update rating (id: %d): %w", f.Id, ErrNotFound)
+		return fmt.Errorf("film not found to update rating (id: %d): %w", f.Id, ErrNotFound)
 	}
 	return nil
 }
@@ -200,19 +222,13 @@ func (r *repository) UpdateRatings(ctx context.Context, films []*FilmRating) err
 	q := database.ExtractTx(ctx, r.pool)
 	res := q.SendBatch(ctx, batch)
 	defer res.Close()
-	for _, f := range films {
+	for range films {
 		tag, err := res.Exec()
-
 		if err != nil {
-			var pgErr *pgconn.PgError
-			if errors.As(err, &pgErr) && pgErr.Code == "23514" {
-				return fmt.Errorf("[film.repository.UpdateRatings] Could not update film rating due to invalid rating value (rating: %f): %w", f.Rating, ErrInvalidRating)
-			}
-			return fmt.Errorf("[film.repository.UpdateRatings] Failed to upload film ratings batch: %w", err)
+			return parseDBError("updating ratings for film batch", err)
 		}
-
 		if tag.RowsAffected() == 0 {
-			return fmt.Errorf("[film.repository.UpdateRatings] No register affected on batch update: %w", ErrNotFound)
+			return fmt.Errorf("no register affected on batch update: %w", ErrNotFound)
 		}
 	}
 	return nil
@@ -224,7 +240,7 @@ func (r *repository) CountTotal(ctx context.Context) (int64, error) {
 	var n int64
 	err := q.QueryRow(ctx, query).Scan(&n)
 	if err != nil {
-		return 0, fmt.Errorf("[film.repository.CountTotal] Failed to count films: %w", err)
+		return 0, parseDBError("counting films", err)
 	}
 	return n, nil
 }
