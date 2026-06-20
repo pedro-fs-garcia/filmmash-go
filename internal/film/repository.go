@@ -32,10 +32,13 @@ func (r *repository) InsertFilm(ctx context.Context, f *Film) error {
 		UNION ALL
 		SELECT id AS director_id FROM directors WHERE id = $1
 	)
-	INSERT INTO films (id, title, release_year, director_id, image_path)
-	SELECT $3, $4, $5, director_id, $6 FROM director
+	INSERT INTO films (id, title, release_year, director_id, image_path, rating)
+	SELECT $3, $4, $5, director_id, $6, $7 FROM director
 	RETURNING id;
 	`
+	if f.Rating == 0 {
+		f.Rating = StdRating
+	}
 	q := database.ExtractTx(ctx, r.pool)
 	err := q.QueryRow(ctx,
 		query,
@@ -45,6 +48,7 @@ func (r *repository) InsertFilm(ctx context.Context, f *Film) error {
 		f.Title,
 		f.Year,
 		f.ImagePath,
+		f.Rating,
 	).Scan(&f.Id)
 	return parseDBError("inserting film", err)
 }

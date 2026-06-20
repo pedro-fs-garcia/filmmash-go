@@ -3,7 +3,6 @@ package film
 import (
 	"context"
 	"filmmash/internal/database"
-	"math"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -33,18 +32,7 @@ func (s *Service) GetFilmsPaginatedByRating(ctx context.Context, pars Pagination
 	if err != nil {
 		return PaginatedResponse{}, err
 	}
-	if len(films) == 0 {
-		return PaginatedResponse{}, nil
-	}
-	last := films[len(films)-1]
-	return PaginatedResponse{
-		Films: films,
-		Next: PaginationParameters{
-			Size:           pars.Size,
-			LastSeenId:     last.Id,
-			LastSeenRating: last.Rating,
-		},
-	}, nil
+	return ToPaginatedResponse(pars.Size, films), nil
 }
 
 func (s *Service) SearchFilmByName(ctx context.Context, search string) ([]Film, error) {
@@ -60,13 +48,4 @@ func (s *Service) UpdateRatings(ctx context.Context, films []*FilmRating) error 
 
 func (s *Service) CountTotal(ctx context.Context) (int64, error) {
 	return s.repo.CountTotal(ctx)
-}
-
-func CalculateRatings(winnerRating, loserRating float64) (newWinnerRating, newLoserRating float64) {
-	const K = 20
-	Ea := 1 / (1 + math.Pow(10, (winnerRating-loserRating)/400))
-	Eb := 1 / (1 + math.Pow(10, (loserRating-winnerRating)/400))
-	newWinnerRating = winnerRating + K*(1-Ea)
-	newLoserRating = loserRating + K*(0-Eb)
-	return newWinnerRating, newLoserRating
 }

@@ -1,3 +1,5 @@
+MIGRATION_NAME ?= "add_migration"
+
 docker-build:
 	docker build -t filmmash-go .
 
@@ -11,11 +13,14 @@ docker-shell:
 docker-stop:
 	docker stop filmmash-go
 
+new-migration:
+	goose create $(MIGRATION_NAME) sql
+
 migrate:
 	goose up
 
 migrate-test-db:
-	goose up -env=".env.test"
+	goose -env=".env.test" up
 
 test:
 	go test ./...
