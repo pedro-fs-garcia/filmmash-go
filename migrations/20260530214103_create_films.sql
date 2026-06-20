@@ -20,7 +20,7 @@ CREATE TABLE films (
 CREATE INDEX idx_films_director_id ON films(director_id);
 
 CREATE TABLE duels (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id UUID PRIMARY KEY DEFAULT uuidv7(),
     film_a_id INT NOT NULL REFERENCES films(id) ON DELETE RESTRICT,
     film_b_id INT NOT NULL REFERENCES films(id) ON DELETE RESTRICT,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -30,7 +30,7 @@ CREATE TABLE duels (
 CREATE SEQUENCE vote_seq;
 
 CREATE TABLE votes (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id UUID PRIMARY KEY DEFAULT uuidv7(),
     duel_id UUID NOT NULL UNIQUE REFERENCES duels(id) ON DELETE RESTRICT,
     winner_id INT NOT NULL REFERENCES films(id) ON DELETE RESTRICT,
     loser_id INT NOT NULL REFERENCES films(id) ON DELETE RESTRICT,
