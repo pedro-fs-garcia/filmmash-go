@@ -41,7 +41,7 @@ func (r *SessionRepository) Insert(ctx context.Context, session *SessionDB) erro
 		session.ExpiresAt,
 	).Scan(&session.ID)
 
-	return err
+	return database.ParseDBError("inserting session", err)
 }
 
 func (r *SessionRepository) GetByTokenHash(ctx context.Context, tokenHash []byte) (Session, error) {
