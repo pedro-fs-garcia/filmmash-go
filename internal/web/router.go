@@ -1,6 +1,7 @@
 package web
 
 import (
+	"filmmash/internal/auth"
 	"filmmash/internal/duel"
 	"filmmash/internal/film"
 	"filmmash/internal/metrics"
@@ -18,6 +19,8 @@ func InitRouter(
 	filmService *film.Service,
 	duelService *duel.Service,
 	registerVoteUC *vote.RegisterVoteUC,
+	authProvider *auth.ZitadelProvider,
+	authService *auth.Service,
 ) *chi.Mux {
 	router := chi.NewRouter()
 	router.Use(middleware.Recoverer(logger))
@@ -32,7 +35,19 @@ func InitRouter(
 		registerVoteUC,
 	)
 
+	authHandler := auth.NewHandler(
+		logger.With("component", "AuthHandler"),
+		authProvider,
+		authService,
+	)
+
 	router.Handle("/metrics", promhttp.HandlerFor(metrics.Registry, promhttp.HandlerOpts{}))
+
+	router.Route("/auth", func(r chi.Router) {
+		r.Get("/login", authHandler.LoginHandler)
+		r.Get("/callback", authHandler.CallbackHandler)
+		r.Get("/logout", authHandler.LogoutHandler)
+	})
 
 	router.Route("/ui", func(r chi.Router) {
 		r.Get("/", handler.DuelHandler)

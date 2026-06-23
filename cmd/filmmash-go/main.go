@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"filmmash/internal/auth"
 	"filmmash/internal/config"
 	"filmmash/internal/database"
 	"filmmash/internal/duel"
@@ -58,7 +59,17 @@ func run() error {
 	voteRepo := vote.NewRepository(pool)
 	registerVoteUC := vote.NewRegisterVoteUC(m.VoteMetrics, voteRepo, filmService, duelService)
 
-	router := web.InitRouter(logger.With("package", "web"), m, filmService, duelService, registerVoteUC)
+	provider := auth.NewZitadelProvider(
+		cfg.ZitadelClientId,
+		cfg.ZitadelClientSecret,
+		cfg.ZitadelBaseURL,
+	)
+
+	sessionRepo := auth.NewSessionRepository(pool)
+	sessionEventRepo := auth.NewSessionEventRepository(pool)
+	authService := auth.NewService(provider, sessionRepo, sessionEventRepo)
+
+	router := web.InitRouter(logger.With("package", "web"), m, filmService, duelService, registerVoteUC, provider, authService)
 
 	pendingDuels, err := duelService.CountPending(context.Background())
 	if err != nil {

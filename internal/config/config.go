@@ -16,6 +16,10 @@ type Config struct {
 	PgDbName         string `env:"POSTGRES_DB_NAME"  envDefault:"filmmash_db"`
 
 	TmdbApitoken string `env:"TMDB_API_TOKEN" envDefault:""`
+
+	ZitadelClientId     string `env:"ZITADEL_CLIENT_ID"`
+	ZitadelClientSecret string `env:"ZITADEL_CLIENT_SECRET"`
+	ZitadelBaseURL      string `env:"ZITADEL_BASE_URL"`
 }
 
 func loadDotenvFile() {
