@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"filmmash/internal/middleware"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"strings"
@@ -114,7 +115,7 @@ func (h *Handler) CallbackHandler(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		log.ErrorContext(ctx,
 			"malformed cookie: could not parse iodc_flow cookie value",
-			slog.String("error", err.Error()),
+			slog.String("error", "malformed iodc_flow cookie"),
 		)
 		http.Error(w, "failed to parse cookie value", http.StatusInternalServerError)
 		return
@@ -122,8 +123,8 @@ func (h *Handler) CallbackHandler(w http.ResponseWriter, r *http.Request) {
 
 	if state != cookieState {
 		log.DebugContext(ctx,
-			"state extracted from cookie does not correpond to state received by auth provider",
-			slog.String("error", err.Error()),
+			fmt.Sprintf("expected state %s from iodc_flow cookie. Got %s.", state, cookieState),
+			slog.String("error", "state extracted from cookie does not correpond to state received by auth provider"),
 		)
 		http.Error(w, "failed to parse cookie value", http.StatusInternalServerError)
 		return
