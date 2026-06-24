@@ -11,21 +11,21 @@ import (
 	"github.com/coreos/go-oidc/v3/oidc"
 )
 
-type ZitadelProvider struct {
+type Zitadel struct {
 	clientId     string
 	clientSecret string
 	providerUrl  string
 }
 
-func NewZitadelProvider(clientId, clientSecret, providerUrl string) *ZitadelProvider {
-	return &ZitadelProvider{
+func NewZitadelProvider(clientId, clientSecret, providerUrl string) *Zitadel {
+	return &Zitadel{
 		clientId:     clientId,
 		clientSecret: clientSecret,
 		providerUrl:  providerUrl,
 	}
 }
 
-func (p *ZitadelProvider) VerifyIdToken(ctx context.Context, token string) (*oidc.IDToken, error) {
+func (p *Zitadel) VerifyIdToken(ctx context.Context, token string) (*oidc.IDToken, error) {
 	provider, err := oidc.NewProvider(ctx, p.providerUrl)
 	if err != nil {
 		return nil, err
@@ -38,7 +38,7 @@ func (p *ZitadelProvider) VerifyIdToken(ctx context.Context, token string) (*oid
 	return idToken, nil
 }
 
-func (p *ZitadelProvider) RequestToken(code, verifier string) (TokenResponse, error) {
+func (p *Zitadel) RequestToken(code, verifier string) (TokenResponse, error) {
 	form := url.Values{}
 	form.Set("grant_type", "authorization_code")
 	form.Set("code", code)
@@ -70,7 +70,7 @@ func (p *ZitadelProvider) RequestToken(code, verifier string) (TokenResponse, er
 	return tokenResp, nil
 }
 
-func (p *ZitadelProvider) AuthorizeURL(state, codeChallenge string) (*url.URL, error) {
+func (p *Zitadel) AuthorizeURL(state, codeChallenge string) (*url.URL, error) {
 	u, err := url.Parse(fmt.Sprintf("%s/oauth/v2/authorize", p.providerUrl))
 	if err != nil {
 		return nil, err
@@ -87,7 +87,7 @@ func (p *ZitadelProvider) AuthorizeURL(state, codeChallenge string) (*url.URL, e
 	return u, nil
 }
 
-func (p *ZitadelProvider) EndSessionURL(idToken string) (*url.URL, error) {
+func (p *Zitadel) EndSessionURL(idToken string) (*url.URL, error) {
 	u, err := url.Parse(fmt.Sprintf("%s/oidc/v1/end_session", p.providerUrl))
 	if err != nil {
 		return nil, err

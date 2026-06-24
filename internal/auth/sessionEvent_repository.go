@@ -19,13 +19,13 @@ func NewSessionEventRepository(pool *pgxpool.Pool) *SessionEventRepository {
 
 func (r *SessionEventRepository) Insert(ctx context.Context, se *SessionEvent) error {
 	query := `
-	INSERT INTO session_events (session_id, user_id, event, ip_address)
+	INSERT INTO session_events (session_id, zitadel_sub, event, ip_address)
 	VALUES ($1, $2, $3, $4)
 	RETURNING id, created_at
 	`
 	q := database.ExtractTx(ctx, r.pool)
 	err := q.QueryRow(
-		ctx, query, se.SessionID, se.UserID, se.Event, se.IPAddress,
+		ctx, query, se.SessionID, se.ZitadelSub, se.Event, se.IPAddress,
 	).Scan(&se.ID, &se.CreatedAt)
 
 	if err != nil {

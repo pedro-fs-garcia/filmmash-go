@@ -29,10 +29,16 @@ type TokenResponse struct {
 	IDToken      string `json:"id_token"`
 }
 
+type User struct {
+	ID         uuid.UUID
+	ZitadelSub string
+	CreatedAt  time.Time
+}
+
 type SessionDB struct {
 	ID                   uuid.UUID  `db:"id"`
 	TokenHash            []byte     `db:"token_hash"`
-	UserID               string     `db:"user_id"`
+	UserID               uuid.UUID  `db:"user_id"`
 	AccessToken          []byte     `db:"access_token"`
 	AccessTokenExpiresAt *time.Time `db:"access_token_expires_at"`
 	RefreshToken         []byte     `db:"refresh_token"`
@@ -46,17 +52,17 @@ type SessionDB struct {
 }
 
 type SessionEvent struct {
-	ID        int64            `db:"id"`
-	SessionID uuid.UUID        `db:"session_id"`
-	UserID    string           `db:"user_id"`
-	Event     SessionEventType `db:"event"`
-	IPAddress netip.Addr       `db:"ip_address"`
-	CreatedAt time.Time        `db:"created_at"`
+	ID         int64            `db:"id"`
+	SessionID  uuid.UUID        `db:"session_id"`
+	ZitadelSub string           `db:"zitadel_sub"`
+	Event      SessionEventType `db:"event"`
+	IPAddress  netip.Addr       `db:"ip_address"`
+	CreatedAt  time.Time        `db:"created_at"`
 }
 
 type Session struct {
 	ID                   uuid.UUID
-	UserID               string
+	UserID               uuid.UUID
 	AccessToken          string
 	AccessTokenExpiresAt time.Time
 	RefreshToken         string

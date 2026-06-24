@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -17,6 +19,42 @@ func NewSessionRepository(pool *pgxpool.Pool) *SessionRepository {
 	return &SessionRepository{
 		pool: pool,
 	}
+}
+
+func (r *SessionRepository) UpsertUser(ctx context.Context, user *User) error {
+	query := `
+	INSERT INTO users (zitadel_sub) VALUES ($1)
+	ON CONFLICT (zitadel_sub) DO UPDATE SET zitadel_sub = EXCLUDED.zitadel_sub
+	RETURNING id, created_at;
+	`
+	q := database.ExtractTx(ctx, r.pool)
+	err := q.QueryRow(ctx, query, user.ZitadelSub).Scan(&user.ID, &user.CreatedAt)
+	if err != nil {
+		return database.ParseDBError("upserting user", err)
+	}
+	return nil
+}
+
+func (r *SessionRepository) GetUserBySub(ctx context.Context, sub string) (User, error) {
+	query := "SELECT id, zitadel_sub, created_at FROM users WHERE zitadel_sub = $1"
+	q := database.ExtractTx(ctx, r.pool)
+	var user User
+	err := q.QueryRow(ctx, query, sub).Scan(&user.ID, &user.ZitadelSub, &user.CreatedAt)
+	if err != nil {
+		return User{}, database.ParseDBError("getting user by sub", err)
+	}
+	return user, nil
+}
+
+func (r *SessionRepository) GetUserById(ctx context.Context, id uuid.UUID) (User, error) {
+	query := "SELECT id, zitadel_sub, created_at FROM users WHERE id = $1"
+	q := database.ExtractTx(ctx, r.pool)
+	var user User
+	err := q.QueryRow(ctx, query, id).Scan(&user.ID, &user.ZitadelSub, &user.CreatedAt)
+	if err != nil {
+		return User{}, database.ParseDBError("getting user by id", err)
+	}
+	return user, nil
 }
 
 func (r *SessionRepository) Insert(ctx context.Context, session *SessionDB) error {
@@ -46,13 +84,17 @@ func (r *SessionRepository) Insert(ctx context.Context, session *SessionDB) erro
 
 func (r *SessionRepository) GetByTokenHash(ctx context.Context, tokenHash []byte) (Session, error) {
 	query := `
-	SELECT token_hash, user_id, access_token, access_token_expires_at, refresh_token, 
-			id_token, scopes, ip_address, user_agent, expires_at
-	FROM sessions WHERE token_hash = $1
-	`
+	SELECT id, token_hash, user_id, access_token, access_token_expires_at,
+	       refresh_token, id_token, scopes, ip_address, user_agent,
+	       created_at, last_seen_at, expires_at
+	FROM sessions WHERE token_hash = $1`
+
 	q := database.ExtractTx(ctx, r.pool)
-	var sessionDB SessionDB
-	err := q.QueryRow(ctx, query, tokenHash).Scan(&sessionDB)
+	rows, err := q.Query(ctx, query, tokenHash)
+	if err != nil {
+		return Session{}, database.ParseDBError("querying session by token_hash", err)
+	}
+	sessionDB, err := pgx.CollectOneRow(rows, pgx.RowToStructByName[SessionDB])
 	if err != nil {
 		return Session{}, database.ParseDBError("querying session by token_hash", err)
 	}

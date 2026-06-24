@@ -13,10 +13,10 @@ import (
 type Handler struct {
 	logger   *slog.Logger
 	service  *Service
-	provider *ZitadelProvider
+	provider *Zitadel
 }
 
-func NewHandler(logger *slog.Logger, provider *ZitadelProvider, authService *Service) *Handler {
+func NewHandler(logger *slog.Logger, provider *Zitadel, authService *Service) *Handler {
 	return &Handler{
 		logger:   logger,
 		service:  authService,
@@ -69,6 +69,13 @@ func (h *Handler) LogoutHandler(w http.ResponseWriter, r *http.Request) {
 	tokenHash := Sha256Hash(token)
 
 	idToken, err := h.service.EndSession(ctx, tokenHash)
+	if err != nil {
+		log.ErrorContext(ctx, "Failed to end session", slog.String("error", err.Error()))
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		return
+	}
+
+	log.DebugContext(ctx, "check if idToken exists", slog.String("id_token", idToken))
 
 	u, err := h.provider.EndSessionURL(idToken)
 	if err != nil {

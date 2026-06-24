@@ -19,7 +19,7 @@ func InitRouter(
 	filmService *film.Service,
 	duelService *duel.Service,
 	registerVoteUC *vote.RegisterVoteUC,
-	authProvider *auth.ZitadelProvider,
+	authProvider *auth.Zitadel,
 	authService *auth.Service,
 ) *chi.Mux {
 	router := chi.NewRouter()

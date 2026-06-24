@@ -24,14 +24,14 @@ func Sha256Hash(raw string) []byte {
 }
 
 type Service struct {
-	provider         *ZitadelProvider
+	provider         *Zitadel
 	sessionRepo      *SessionRepository
 	sessionEventRepo *SessionEventRepository
 	txManager        *database.TxManager
 }
 
 func NewService(
-	provider *ZitadelProvider,
+	provider *Zitadel,
 	repo *SessionRepository,
 	sessionEventRepo *SessionEventRepository,
 ) *Service {
@@ -52,29 +52,37 @@ func (s *Service) InitSession(ctx context.Context, tokenResponse TokenResponse) 
 		return Session{}, "", err
 	}
 
-	scopes := "openid profile email offline_access"
-	accessTokenExpiresAt := time.Now().Add(time.Duration(tokenResponse.ExpiresIn) * time.Second)
-	sessionDB := SessionDB{
-		TokenHash:            tokenHash,
-		UserID:               idToken.Subject,
-		AccessToken:          []byte(tokenResponse.AccessToken),
-		AccessTokenExpiresAt: &accessTokenExpiresAt,
-		IDToken:              []byte(tokenResponse.IDToken),
-		Scopes:               &scopes,
-		ExpiresAt:            time.Now().Add(time.Duration(360000) * time.Second),
-	}
+	var sessionDB SessionDB
 
 	err = s.txManager.ExecTx(ctx, func(txCtx context.Context) error {
+		user := User{ZitadelSub: idToken.Subject}
+		err := s.sessionRepo.UpsertUser(ctx, &user)
+		if err != nil {
+			return err
+		}
+
+		scopes := "openid profile email offline_access"
+		accessTokenExpiresAt := time.Now().Add(time.Duration(tokenResponse.ExpiresIn) * time.Second)
+		sessionDB = SessionDB{
+			TokenHash:            tokenHash,
+			UserID:               user.ID,
+			AccessToken:          []byte(tokenResponse.AccessToken),
+			AccessTokenExpiresAt: &accessTokenExpiresAt,
+			IDToken:              []byte(tokenResponse.IDToken),
+			Scopes:               &scopes,
+			ExpiresAt:            time.Now().Add(time.Duration(360000) * time.Second),
+		}
+
 		err = s.sessionRepo.Insert(ctx, &sessionDB)
 		if err != nil {
 			return err
 		}
 
 		sessionEvent := SessionEvent{
-			SessionID: sessionDB.ID,
-			UserID:    sessionDB.UserID,
-			Event:     EventCreated,
-			IPAddress: sessionDB.IPAddress,
+			SessionID:  sessionDB.ID,
+			ZitadelSub: user.ZitadelSub,
+			Event:      EventCreated,
+			IPAddress:  sessionDB.IPAddress,
 		}
 		err = s.sessionEventRepo.Insert(ctx, &sessionEvent)
 		if err != nil {
@@ -105,10 +113,15 @@ func (s *Service) EndSession(ctx context.Context, tokenHash []byte) (string, err
 		return "", err
 	}
 	err = s.txManager.ExecTx(ctx, func(txCtx context.Context) error {
+		user, err := s.sessionRepo.GetUserById(ctx, session.UserID)
+		if err != nil {
+			return err
+		}
+
 		sessionEvent := SessionEvent{
-			SessionID: session.ID,
-			UserID:    session.UserID,
-			Event:     EventCreated,
+			SessionID:  session.ID,
+			ZitadelSub: user.ZitadelSub,
+			Event:      EventLoggedOut,
 		}
 		err = s.sessionRepo.DeleteByTokenHash(ctx, tokenHash)
 		if err != nil {
