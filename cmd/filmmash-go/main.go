@@ -66,8 +66,7 @@ func run() error {
 	)
 
 	sessionRepo := auth.NewSessionRepository(pool)
-	sessionEventRepo := auth.NewSessionEventRepository(pool)
-	authService := auth.NewService(provider, sessionRepo, sessionEventRepo)
+	authService := auth.NewService(provider, sessionRepo)
 
 	router := web.InitRouter(logger.With("package", "web"), m, filmService, duelService, registerVoteUC, provider, authService)
 

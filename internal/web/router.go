@@ -54,7 +54,10 @@ func InitRouter(
 		r.Get("/films", handler.FilmsListHandler)
 		r.Get("/films/search", handler.SearchFilmsHandler)
 		r.Get("/film/{id}", handler.FilmHandler)
-		r.Post("/duel/{duel_id}/result", handler.DuelResultHandler)
+		r.Post(
+			"/duel/{duel_id}/result",
+			authService.SessionMiddleware(handler.DuelResultHandler),
+		)
 	})
 
 	return router

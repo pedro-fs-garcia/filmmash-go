@@ -4,7 +4,6 @@ import (
 	"context"
 	"filmmash/internal/database"
 	"fmt"
-	"strings"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -114,49 +113,19 @@ func (r *SessionRepository) DeleteByTokenHash(ctx context.Context, tokenHash []b
 	return nil
 }
 
-func SessionToSessionDB(session Session, tokenHash []byte) SessionDB {
-	scope := strings.Join(session.Scopes, " ")
-	sessionDB := SessionDB{
-		ID:                   session.ID,
-		TokenHash:            tokenHash,
-		UserID:               session.UserID,
-		AccessToken:          []byte(session.AccessToken),
-		AccessTokenExpiresAt: &session.AccessTokenExpiresAt,
-		RefreshToken:         []byte(session.RefreshToken),
-		IDToken:              []byte(session.IDToken),
-		Scopes:               &scope,
-		IPAddress:            session.IPAddress,
-		UserAgent:            &session.UserAgent,
-		CreatedAt:            session.CreatedAt,
-		LastSeenAt:           session.LastSeenAt,
-		ExpiresAt:            session.ExpiresAt,
-	}
-	if len(scope) == 0 {
-		sessionDB.Scopes = nil
-	}
-	return sessionDB
-}
+func (r *SessionRepository) InsertEvent(ctx context.Context, se *SessionEvent) error {
+	query := `
+	INSERT INTO session_events (session_id, zitadel_sub, event, ip_address)
+	VALUES ($1, $2, $3, $4)
+	RETURNING id, created_at
+	`
+	q := database.ExtractTx(ctx, r.pool)
+	err := q.QueryRow(
+		ctx, query, se.SessionID, se.ZitadelSub, se.Event, se.IPAddress,
+	).Scan(&se.ID, &se.CreatedAt)
 
-func SessionDBToSession(sdb SessionDB) Session {
-	session := Session{
-		ID:           sdb.ID,
-		UserID:       sdb.UserID,
-		AccessToken:  string(sdb.AccessToken),
-		RefreshToken: string(sdb.RefreshToken),
-		IDToken:      string(sdb.IDToken),
-		IPAddress:    sdb.IPAddress,
-		CreatedAt:    sdb.CreatedAt,
-		LastSeenAt:   sdb.LastSeenAt,
-		ExpiresAt:    sdb.ExpiresAt,
+	if err != nil {
+		return database.ParseDBError("inserting to session_events", err)
 	}
-	if sdb.AccessTokenExpiresAt != nil {
-		session.AccessTokenExpiresAt = *sdb.AccessTokenExpiresAt
-	}
-	if sdb.Scopes != nil {
-		session.Scopes = strings.Split(*sdb.Scopes, " ")
-	}
-	if sdb.UserAgent != nil {
-		session.UserAgent = *sdb.UserAgent
-	}
-	return session
+	return nil
 }

@@ -24,22 +24,19 @@ func Sha256Hash(raw string) []byte {
 }
 
 type Service struct {
-	provider         *Zitadel
-	sessionRepo      *SessionRepository
-	sessionEventRepo *SessionEventRepository
-	txManager        *database.TxManager
+	provider   *Zitadel
+	repository *SessionRepository
+	txManager  *database.TxManager
 }
 
 func NewService(
 	provider *Zitadel,
 	repo *SessionRepository,
-	sessionEventRepo *SessionEventRepository,
 ) *Service {
 	return &Service{
-		provider:         provider,
-		sessionRepo:      repo,
-		sessionEventRepo: sessionEventRepo,
-		txManager:        database.NewTxManager(repo.pool),
+		provider:   provider,
+		repository: repo,
+		txManager:  database.NewTxManager(repo.pool),
 	}
 }
 
@@ -56,10 +53,12 @@ func (s *Service) InitSession(ctx context.Context, tokenResponse TokenResponse) 
 
 	err = s.txManager.ExecTx(ctx, func(txCtx context.Context) error {
 		user := User{ZitadelSub: idToken.Subject}
-		err := s.sessionRepo.UpsertUser(ctx, &user)
+		err := s.repository.UpsertUser(ctx, &user)
 		if err != nil {
 			return err
 		}
+
+		_, err = s.provider.GetUserInfo(ctx, tokenResponse.AccessToken)
 
 		scopes := "openid profile email offline_access"
 		accessTokenExpiresAt := time.Now().Add(time.Duration(tokenResponse.ExpiresIn) * time.Second)
@@ -73,7 +72,7 @@ func (s *Service) InitSession(ctx context.Context, tokenResponse TokenResponse) 
 			ExpiresAt:            time.Now().Add(time.Duration(360000) * time.Second),
 		}
 
-		err = s.sessionRepo.Insert(ctx, &sessionDB)
+		err = s.repository.Insert(ctx, &sessionDB)
 		if err != nil {
 			return err
 		}
@@ -84,7 +83,7 @@ func (s *Service) InitSession(ctx context.Context, tokenResponse TokenResponse) 
 			Event:      EventCreated,
 			IPAddress:  sessionDB.IPAddress,
 		}
-		err = s.sessionEventRepo.Insert(ctx, &sessionEvent)
+		err = s.repository.InsertEvent(ctx, &sessionEvent)
 		if err != nil {
 			return err
 		}
@@ -108,12 +107,12 @@ func (s *Service) InitSession(ctx context.Context, tokenResponse TokenResponse) 
 }
 
 func (s *Service) EndSession(ctx context.Context, tokenHash []byte) (string, error) {
-	session, err := s.sessionRepo.GetByTokenHash(ctx, tokenHash)
+	session, err := s.repository.GetByTokenHash(ctx, tokenHash)
 	if err != nil {
 		return "", err
 	}
 	err = s.txManager.ExecTx(ctx, func(txCtx context.Context) error {
-		user, err := s.sessionRepo.GetUserById(ctx, session.UserID)
+		user, err := s.repository.GetUserById(ctx, session.UserID)
 		if err != nil {
 			return err
 		}
@@ -123,11 +122,11 @@ func (s *Service) EndSession(ctx context.Context, tokenHash []byte) (string, err
 			ZitadelSub: user.ZitadelSub,
 			Event:      EventLoggedOut,
 		}
-		err = s.sessionRepo.DeleteByTokenHash(ctx, tokenHash)
+		err = s.repository.DeleteByTokenHash(ctx, tokenHash)
 		if err != nil {
 			return err
 		}
-		return s.sessionEventRepo.Insert(ctx, &sessionEvent)
+		return s.repository.InsertEvent(ctx, &sessionEvent)
 	})
 	if err != nil {
 		return "", err

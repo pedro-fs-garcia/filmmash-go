@@ -3,6 +3,7 @@ package auth
 import (
 	"net/http"
 	"net/netip"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -73,4 +74,63 @@ type Session struct {
 	CreatedAt            time.Time
 	LastSeenAt           time.Time
 	ExpiresAt            time.Time
+}
+
+type UserInfo struct {
+	Sub               string `json:"sub"`
+	Email             string `json:"email"`
+	Name              string `json:"name"`
+	EmailVerified     bool   `json:"email_verified"`
+	FamilyName        string `json:"family_name"`
+	GivenName         string `json:"given_name"`
+	Locale            string `json:"locale"`
+	PreferredUsername string `json:"preferred_username"`
+	UpdatedAt         int64  `json:"updated_at"`
+}
+
+func SessionToSessionDB(session Session, tokenHash []byte) SessionDB {
+	scope := strings.Join(session.Scopes, " ")
+	sessionDB := SessionDB{
+		ID:                   session.ID,
+		TokenHash:            tokenHash,
+		UserID:               session.UserID,
+		AccessToken:          []byte(session.AccessToken),
+		AccessTokenExpiresAt: &session.AccessTokenExpiresAt,
+		RefreshToken:         []byte(session.RefreshToken),
+		IDToken:              []byte(session.IDToken),
+		Scopes:               &scope,
+		IPAddress:            session.IPAddress,
+		UserAgent:            &session.UserAgent,
+		CreatedAt:            session.CreatedAt,
+		LastSeenAt:           session.LastSeenAt,
+		ExpiresAt:            session.ExpiresAt,
+	}
+	if len(scope) == 0 {
+		sessionDB.Scopes = nil
+	}
+	return sessionDB
+}
+
+func SessionDBToSession(sdb SessionDB) Session {
+	session := Session{
+		ID:           sdb.ID,
+		UserID:       sdb.UserID,
+		AccessToken:  string(sdb.AccessToken),
+		RefreshToken: string(sdb.RefreshToken),
+		IDToken:      string(sdb.IDToken),
+		IPAddress:    sdb.IPAddress,
+		CreatedAt:    sdb.CreatedAt,
+		LastSeenAt:   sdb.LastSeenAt,
+		ExpiresAt:    sdb.ExpiresAt,
+	}
+	if sdb.AccessTokenExpiresAt != nil {
+		session.AccessTokenExpiresAt = *sdb.AccessTokenExpiresAt
+	}
+	if sdb.Scopes != nil {
+		session.Scopes = strings.Split(*sdb.Scopes, " ")
+	}
+	if sdb.UserAgent != nil {
+		session.UserAgent = *sdb.UserAgent
+	}
+	return session
 }

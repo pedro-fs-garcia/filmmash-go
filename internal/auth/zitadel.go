@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"strings"
@@ -85,6 +86,46 @@ func (p *Zitadel) AuthorizeURL(state, codeChallenge string) (*url.URL, error) {
 	q.Set("code_challenge_method", "S256")
 	u.RawQuery = q.Encode()
 	return u, nil
+}
+
+func (p *Zitadel) UserInfoURL(ctx context.Context, accessToken string) (*http.Request, error) {
+	req, err := http.NewRequestWithContext(
+		ctx,
+		http.MethodGet,
+		fmt.Sprintf("%s/oidc/v1/userinfo", p.providerUrl),
+		nil,
+	)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Authorization", "Bearer "+accessToken)
+	return req, nil
+}
+
+func (p *Zitadel) GetUserInfo(ctx context.Context, accessToken string) (UserInfo, error) {
+	req, err := p.UserInfoURL(ctx, accessToken)
+	if err != nil {
+		return UserInfo{}, err
+	}
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return UserInfo{}, err
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return UserInfo{}, err
+	}
+	if resp.StatusCode != http.StatusOK {
+		return UserInfo{}, fmt.Errorf("UserInfo returned %d: %s", resp.StatusCode, body)
+	}
+
+	var raw UserInfo
+	if err := json.Unmarshal(body, &raw); err != nil {
+		return UserInfo{}, fmt.Errorf("decoding userinfo: %w", err)
+	}
+	return raw, nil
 }
 
 func (p *Zitadel) EndSessionURL(idToken string) (*url.URL, error) {

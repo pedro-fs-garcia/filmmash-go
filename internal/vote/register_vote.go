@@ -2,6 +2,7 @@ package vote
 
 import (
 	"context"
+	"filmmash/internal/auth"
 	"filmmash/internal/database"
 	"filmmash/internal/duel"
 	"filmmash/internal/film"
@@ -32,6 +33,12 @@ func NewRegisterVoteUC(metrics *metrics.VoteMetrics, repo *repository, filmServi
 
 func (uc *RegisterVoteUC) RegisterVote(ctx context.Context, duelId uuid.UUID, winnerId int) (Vote, error) {
 	var vote Vote
+	var userId *uuid.UUID
+	session, ok := auth.SessionFromContext(ctx)
+	if ok {
+		userId = &session.UserID
+	}
+
 	err := uc.txManager.ExecTx(ctx, func(txCtx context.Context) error {
 		ratings, err := uc.duelService.GetDuelRatings(txCtx, duelId)
 		if err != nil {
@@ -51,6 +58,7 @@ func (uc *RegisterVoteUC) RegisterVote(ctx context.Context, duelId uuid.UUID, wi
 		newWinnerRating, newLoserRating := film.CalculateRatings(winner.Rating, loser.Rating)
 		vote = Vote{
 			DuelId:            duelId,
+			UserID:            userId,
 			WinnerID:          winnerId,
 			LoserId:           loser.Id,
 			WinnerRatingAfter: newWinnerRating,

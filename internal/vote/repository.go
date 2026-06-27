@@ -20,13 +20,13 @@ func NewRepository(pool *pgxpool.Pool) *repository {
 
 func (r *repository) InsertVote(ctx context.Context, vote *Vote) error {
 	query := `
-	INSERT INTO votes (duel_id, winner_id, loser_id, winner_rating_after, loser_rating_after) 
-	VALUES ($1, $2, $3, $4, $5) 
+	INSERT INTO votes (duel_id, user_id, winner_id, loser_id, winner_rating_after, loser_rating_after) 
+	VALUES ($1, $2, $3, $4, $5, $6) 
 	RETURNING id
 	`
 	q := database.ExtractTx(ctx, r.pool)
 	err := q.QueryRow(ctx, query,
-		vote.DuelId,
+		vote.DuelId, vote.UserID,
 		vote.WinnerID, vote.LoserId, vote.WinnerRatingAfter, vote.LoserRatingAfter,
 	).Scan(&vote.Id)
 	if err != nil {
