@@ -1,0 +1,28 @@
+{{ define "filmVotes" }}
+{{ $filmId := .FilmId }}
+{{ if .Matchups }}
+<div class="vote-head">
+    <span class="vote-head-label vote-head-winner">Winner</span>
+    <span class="vote-vs" aria-hidden="true">X</span>
+    <span class="vote-head-label vote-head-loser">Loser</span>
+</div>
+<ul class="vote-history">
+    {{ range .Matchups }}
+    <li class="vote-row">
+        <span class="vote-film {{ if eq .Winner.Id $filmId }}vote-self{{ end }}">
+            {{ .Winner.Title }} <span class="film-year">({{ .Winner.Year }})</span>
+            <!-- <span class="vote-rating">{{ printf "%.2f" .Winner.RatingAfter }}</span> -->
+        </span>
+        <span class="vote-vs"> X </span>
+        <span class="vote-film {{ if eq .Loser.Id $filmId }}vote-self{{ end }}">
+            {{ .Loser.Title }} <span class="film-year">({{ .Loser.Year }})</span>
+            <!-- <span class="vote-rating">{{ printf "%.2f" .Loser.RatingAfter }}</span> -->
+        </span>
+        <time class="vote-date">{{ .CreatedAt.Format "Jan 2, 2006" }}</time>
+    </li>
+    {{ end }}
+</ul>
+{{ else }}
+<p class="vote-empty">No votes yet.</p>
+{{ end }}
+{{ end }}

@@ -58,6 +58,7 @@ func run() error {
 
 	voteRepo := vote.NewRepository(pool)
 	registerVoteUC := vote.NewRegisterVoteUC(m.VoteMetrics, voteRepo, filmService, duelService)
+	listVoteUC := vote.NewListVotesUC(voteRepo)
 
 	provider := auth.NewZitadelProvider(
 		cfg.ZitadelClientId,
@@ -68,7 +69,7 @@ func run() error {
 	sessionRepo := auth.NewSessionRepository(pool)
 	authService := auth.NewService(provider, sessionRepo)
 
-	router := web.InitRouter(logger.With("package", "web"), m, filmService, duelService, registerVoteUC, provider, authService)
+	router := web.InitRouter(logger.With("package", "web"), m, filmService, duelService, registerVoteUC, listVoteUC, provider, authService)
 
 	pendingDuels, err := duelService.CountPending(context.Background())
 	if err != nil {

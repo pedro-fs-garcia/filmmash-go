@@ -25,15 +25,17 @@ type Handler struct {
 	logger         *slog.Logger
 	filmService    *film.Service
 	registerVoteUc *vote.RegisterVoteUC
+	listVoteUC     *vote.ListVotesUC
 	duelService    *duel.Service
 }
 
-func NewHandler(l *slog.Logger, fs *film.Service, ds *duel.Service, rvuc *vote.RegisterVoteUC) *Handler {
+func NewHandler(l *slog.Logger, fs *film.Service, ds *duel.Service, rvuc *vote.RegisterVoteUC, lvuc *vote.ListVotesUC) *Handler {
 	return &Handler{
 		logger:         l,
 		filmService:    fs,
 		duelService:    ds,
 		registerVoteUc: rvuc,
+		listVoteUC:     lvuc,
 	}
 }
 
@@ -46,6 +48,9 @@ func init() {
 	))
 	templateCache["filmModal"] = template.Must(template.ParseFS(TemplatesFS,
 		"template/film_modal.html",
+	))
+	templateCache["filmVotes"] = template.Must(template.ParseFS(TemplatesFS,
+		"template/film_votes.html",
 	))
 	templateCache["duelPage"] = template.Must(template.ParseFS(TemplatesFS,
 		"template/base.html",
@@ -301,6 +306,50 @@ func (h *Handler) SearchFilmsHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Error mounting HTML file", http.StatusInternalServerError)
 		return
 	}
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.WriteHeader(http.StatusOK)
+	buf.WriteTo(w)
+}
+
+// filmVotesView carries the matchups plus the id of the film whose modal is
+// open, so the template can emphasise that film within each row.
+type filmVotesView struct {
+	FilmId   int
+	Matchups []vote.MatchupResult
+}
+
+func (h *Handler) ListFilmVotes(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	reqId := middleware.GetRequestID(ctx)
+	log := h.logger.With(slog.String("method", "ListFilmVotes"), slog.String("request_id", reqId))
+
+	par := chi.URLParam(r, "film_id")
+	filmId, err := strconv.Atoi(par)
+	if err != nil {
+		log.WarnContext(ctx, "Invalid value for film_id",
+			slog.String("error", err.Error()),
+			slog.String("raw_id", par),
+		)
+		http.Error(w, "Invalid film_id", http.StatusBadRequest)
+		return
+	}
+
+	matchups, err := h.listVoteUC.ListVotes(ctx, filmId)
+	if err != nil {
+		log.ErrorContext(ctx, "Failed to list film votes", slog.String("error", err.Error()))
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		return
+	}
+
+	view := filmVotesView{FilmId: filmId, Matchups: matchups}
+	buf := bytes.Buffer{}
+	err = templateCache["filmVotes"].ExecuteTemplate(&buf, "filmVotes", view)
+	if err != nil {
+		log.ErrorContext(ctx, "Failed to render HTML template", slog.String("error", err.Error()))
+		http.Error(w, "Error mounting HTML file", http.StatusInternalServerError)
+		return
+	}
+
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(http.StatusOK)
 	buf.WriteTo(w)

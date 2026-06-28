@@ -1,12 +1,23 @@
 {{ define "filmModal" }}
 <div class="modal-overlay" onclick="document.getElementById('modal').innerHTML=''">
-    <div class="modal-dialog" onclick="event.stopPropagation()">
+    <div class="modal-dialog modal-dialog-wide" onclick="event.stopPropagation()">
         <button class="modal-close" aria-label="Close"
             onclick="document.getElementById('modal').innerHTML=''">&times;</button>
-        <h1>{{ .Title }} ({{ .Year }})</h1>
-        <h2>{{ .Director.Name }}</h2>
-        <img src="https://image.tmdb.org/t/p/w500{{ .ImagePath }}" alt="{{ .Title }}">
-        <h3 class="film-rating">{{ printf "%.2f" .Rating }}</h3>
+        <div class="modal-body">
+            <div class="modal-film">
+                <h1>{{ .Title }} ({{ .Year }})</h1>
+                <h2>{{ .Director.Name }}</h2>
+                <img src="https://image.tmdb.org/t/p/w500{{ .ImagePath }}" alt="{{ .Title }}">
+                <h3 class="film-rating">{{ printf "%.2f" .Rating }}</h3>
+            </div>
+            <div class="modal-votes">
+                <h2 class="vote-history-title">Vote History</h2>
+                <div class="vote-history-wrap" hx-get="/ui/film/votes/{{ .Id }}" hx-trigger="load"
+                    hx-swap="innerHTML">
+                    <p class="vote-loading">Loading vote history&hellip;</p>
+                </div>
+            </div>
+        </div>
     </div>
 </div>
 {{ end }}

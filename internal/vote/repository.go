@@ -39,6 +39,38 @@ func (r *repository) InsertVote(ctx context.Context, vote *Vote) error {
 	return nil
 }
 
+func (r *repository) ListFilmVotes(ctx context.Context, filmId int) ([]MatchupResult, error) {
+	query := `
+	SELECT v.winner_id, v.loser_id, v.winner_rating_after, v.loser_rating_after, v.created_at,
+		fw.title, fw.release_year, fl.title, fl.release_year
+	FROM votes v
+	JOIN films fw ON fw.id = v.winner_id
+	JOIN films fl ON fl.id = v.loser_id
+	WHERE v.winner_id = $1 OR v.loser_id = $1
+	ORDER BY v.created_at DESC
+	`
+	q := database.ExtractTx(ctx, r.pool)
+	rows, err := q.Query(ctx, query, filmId)
+	if err != nil {
+		return nil, database.ParseDBError("querying list of film votes", err)
+	}
+
+	var votes []MatchupResult
+	for rows.Next() {
+		var vr MatchupResult
+		err = rows.Scan(
+			&vr.Winner.Id, &vr.Loser.Id, &vr.Winner.RatingAfter, &vr.Loser.RatingAfter,
+			&vr.CreatedAt,
+			&vr.Winner.Title, &vr.Winner.Year, &vr.Loser.Title, &vr.Loser.Year,
+		)
+		votes = append(votes, vr)
+	}
+	if err = rows.Err(); err != nil {
+		return nil, database.ParseDBError("iterating rows", err)
+	}
+	return votes, nil
+}
+
 func (r *repository) CurrentTotal(ctx context.Context) (int, error) {
 	query := "SELECT COUNT(*) FROM votes"
 	var n int
