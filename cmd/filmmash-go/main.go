@@ -66,7 +66,7 @@ func run() error {
 		cfg.ZitadelBaseURL,
 	)
 
-	sessionRepo := auth.NewSessionRepository(pool)
+	sessionRepo := auth.NewRepository(pool)
 	authService := auth.NewService(provider, sessionRepo)
 
 	router := web.InitRouter(logger.With("package", "web"), m, filmService, duelService, registerVoteUC, listVoteUC, provider, authService)

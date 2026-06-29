@@ -25,13 +25,13 @@ func Sha256Hash(raw string) []byte {
 
 type Service struct {
 	provider   *Zitadel
-	repository *SessionRepository
+	repository *repository
 	txManager  *database.TxManager
 }
 
 func NewService(
 	provider *Zitadel,
-	repo *SessionRepository,
+	repo *repository,
 ) *Service {
 	return &Service{
 		provider:   provider,
