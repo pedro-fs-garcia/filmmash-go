@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"filmmash/internal/auth"
 	"filmmash/internal/duel"
 	"filmmash/internal/film"
 	"filmmash/internal/middleware"
@@ -75,6 +76,10 @@ func init() {
 	templateCache["filmSearchResults"] = template.Must(template.ParseFS(TemplatesFS,
 		"template/film_search_results.html",
 		"template/film_list_item.html",
+	))
+	templateCache["myVotesPage"] = template.Must(template.ParseFS(TemplatesFS,
+		"template/base.html",
+		"template/my_votes.html",
 	))
 }
 
@@ -344,6 +349,37 @@ func (h *Handler) ListFilmVotes(w http.ResponseWriter, r *http.Request) {
 	view := filmVotesView{FilmId: filmId, Matchups: matchups}
 	buf := bytes.Buffer{}
 	err = templateCache["filmVotes"].ExecuteTemplate(&buf, "filmVotes", view)
+	if err != nil {
+		log.ErrorContext(ctx, "Failed to render HTML template", slog.String("error", err.Error()))
+		http.Error(w, "Error mounting HTML file", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.WriteHeader(http.StatusOK)
+	buf.WriteTo(w)
+}
+
+func (h *Handler) MyVotesHandler(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	reqId := middleware.GetRequestID(ctx)
+	log := h.logger.With(slog.String("method", "MyVotesHandler"), slog.String("request_id", reqId))
+
+	session, ok := auth.SessionFromContext(ctx)
+	if !ok {
+		http.Redirect(w, r, "/auth/login", http.StatusSeeOther)
+		return
+	}
+
+	matchups, err := h.listVoteUC.ListMyVotes(ctx, session.UserID)
+	if err != nil {
+		log.ErrorContext(ctx, "listing user's votes", slog.String("error", err.Error()))
+		http.Error(w, "Failed to fetch users votes", http.StatusInternalServerError)
+		return
+	}
+
+	buf := bytes.Buffer{}
+	err = templateCache["myVotesPage"].ExecuteTemplate(&buf, "base", matchups)
 	if err != nil {
 		log.ErrorContext(ctx, "Failed to render HTML template", slog.String("error", err.Error()))
 		http.Error(w, "Error mounting HTML file", http.StatusInternalServerError)

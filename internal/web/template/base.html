@@ -464,6 +464,22 @@
             height: 1px;
         }
 
+        /* ===================== My votes page ===================== */
+        .my-votes {
+            max-width: min(95vw, 760px);
+            margin: 1.5rem auto 0;
+        }
+
+        /* On the standalone page the matchup films are links to the modal */
+        .my-votes .vote-film {
+            text-decoration: none;
+            transition: color 0.2s ease;
+        }
+
+        .my-votes a.vote-film:hover {
+            color: var(--gold-bright);
+        }
+
         /* ===================== Film modal ======================== */
         /* Hide the fixed hamburger while a modal is open so it can't
            overlap the dialog on small screens. */
@@ -743,6 +759,7 @@
     <nav class="side-nav">
         <a href="/ui/">FilmMash</a>
         <a href="/ui/films?size=50&last_seen_id=0&last_seen_rating=9999">Films list</a>
+        <a href="/ui/my_votes">My votes</a>
         <a href="/auth/login" class="nav-auth">Login</a>
         <a href="/auth/logout">Logout</a>
     </nav>

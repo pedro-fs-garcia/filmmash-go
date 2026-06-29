@@ -6,6 +6,7 @@ import (
 	"filmmash/internal/database"
 	"fmt"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -80,4 +81,36 @@ func (r *repository) CurrentTotal(ctx context.Context) (int, error) {
 		return 0, fmt.Errorf("[vote.repository.CurrentTotal] failed to count total current votes: %w", err)
 	}
 	return n, nil
+}
+
+func (r *repository) ListUsersVotes(ctx context.Context, userId uuid.UUID) ([]MatchupResult, error) {
+	query := `
+	SELECT v.winner_id, v.loser_id, v.winner_rating_after, v.loser_rating_after, v.created_at,
+		fw.title, fw.release_year, fw.image_path, fl.title, fl.release_year, fl.image_path
+	FROM votes v
+	JOIN films fw ON fw.id = v.winner_id
+	JOIN films fl ON fl.id = v.loser_id
+	WHERE v.user_id = $1
+	ORDER BY v.created_at DESC
+	`
+	q := database.ExtractTx(ctx, r.pool)
+	rows, err := q.Query(ctx, query, userId)
+	if err != nil {
+		return nil, database.ParseDBError("querying list of film votes", err)
+	}
+
+	var votes []MatchupResult
+	for rows.Next() {
+		var vr MatchupResult
+		err = rows.Scan(
+			&vr.Winner.Id, &vr.Loser.Id, &vr.Winner.RatingAfter, &vr.Loser.RatingAfter,
+			&vr.CreatedAt,
+			&vr.Winner.Title, &vr.Winner.Year, &vr.Winner.ImagePath, &vr.Loser.Title, &vr.Loser.Year, &vr.Loser.ImagePath,
+		)
+		votes = append(votes, vr)
+	}
+	if err = rows.Err(); err != nil {
+		return nil, database.ParseDBError("iterating rows", err)
+	}
+	return votes, nil
 }

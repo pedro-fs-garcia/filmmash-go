@@ -57,6 +57,7 @@ func InitRouter(
 		r.Get("/films/search", handler.SearchFilmsHandler)
 		r.Get("/film/{id}", handler.FilmHandler)
 		r.Get("/film/votes/{film_id}", handler.ListFilmVotes)
+		r.Get("/my_votes", authService.SessionMiddleware(handler.MyVotesHandler))
 		r.Post(
 			"/duel/{duel_id}/result",
 			authService.SessionMiddleware(handler.DuelResultHandler),

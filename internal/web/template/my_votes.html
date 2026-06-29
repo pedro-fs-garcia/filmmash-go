@@ -1,0 +1,35 @@
+{{ template "base" . }}
+
+{{ define "content" }}
+
+<h1>My Votes</h1>
+
+<div class="my-votes">
+    {{ if . }}
+    <div class="vote-head">
+        <span class="vote-head-label vote-head-winner">Winner</span>
+        <span class="vote-vs" aria-hidden="true">X</span>
+        <span class="vote-head-label vote-head-loser">Loser</span>
+    </div>
+    <ul class="vote-history">
+        {{ range . }}
+        <li class="vote-row">
+            <a class="vote-film vote-self" href="/ui/film/{{ .Winner.Id }}"
+                hx-get="/ui/film/{{ .Winner.Id }}" hx-target="#modal" hx-swap="innerHTML">
+                {{ .Winner.Title }} <span class="film-year">({{ .Winner.Year }})</span>
+            </a>
+            <span class="vote-vs"> X </span>
+            <a class="vote-film" href="/ui/film/{{ .Loser.Id }}"
+                hx-get="/ui/film/{{ .Loser.Id }}" hx-target="#modal" hx-swap="innerHTML">
+                {{ .Loser.Title }} <span class="film-year">({{ .Loser.Year }})</span>
+            </a>
+            <time class="vote-date">{{ .CreatedAt.Format "Jan 2, 2006" }}</time>
+        </li>
+        {{ end }}
+    </ul>
+    {{ else }}
+    <p class="vote-empty">You haven't voted yet.</p>
+    {{ end }}
+</div>
+
+{{ end }}
