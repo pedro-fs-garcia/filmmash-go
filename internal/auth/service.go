@@ -53,12 +53,12 @@ func (s *Service) InitSession(ctx context.Context, tokenResponse TokenResponse) 
 
 	err = s.txManager.ExecTx(ctx, func(txCtx context.Context) error {
 		user := User{ZitadelSub: idToken.Subject}
-		err := s.repository.UpsertUser(ctx, &user)
+		err := s.repository.UpsertUser(txCtx, &user)
 		if err != nil {
 			return err
 		}
 
-		_, err = s.provider.GetUserInfo(ctx, tokenResponse.AccessToken)
+		_, err = s.provider.GetUserInfo(txCtx, tokenResponse.AccessToken)
 
 		scopes := "openid profile email offline_access"
 		accessTokenExpiresAt := time.Now().Add(time.Duration(tokenResponse.ExpiresIn) * time.Second)
@@ -72,7 +72,7 @@ func (s *Service) InitSession(ctx context.Context, tokenResponse TokenResponse) 
 			ExpiresAt:            time.Now().Add(time.Duration(360000) * time.Second),
 		}
 
-		err = s.repository.Insert(ctx, &sessionDB)
+		err = s.repository.Insert(txCtx, &sessionDB)
 		if err != nil {
 			return err
 		}
@@ -83,7 +83,7 @@ func (s *Service) InitSession(ctx context.Context, tokenResponse TokenResponse) 
 			Event:      EventCreated,
 			IPAddress:  sessionDB.IPAddress,
 		}
-		err = s.repository.InsertEvent(ctx, &sessionEvent)
+		err = s.repository.InsertEvent(txCtx, &sessionEvent)
 		if err != nil {
 			return err
 		}
@@ -95,15 +95,6 @@ func (s *Service) InitSession(ctx context.Context, tokenResponse TokenResponse) 
 	}
 
 	return SessionDBToSession(sessionDB), rawToken, nil
-
-	// var claims struct {
-	// 	Email string `json:"email"`
-	// 	Name  string `json:"name"`
-	// }
-	// idToken.Claims(&claims)
-
-	// opaqueId := randString()
-	// sessionLifetime := 300
 }
 
 func (s *Service) EndSession(ctx context.Context, tokenHash []byte) (string, error) {
