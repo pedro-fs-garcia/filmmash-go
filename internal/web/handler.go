@@ -367,7 +367,7 @@ func (h *Handler) MyVotesHandler(w http.ResponseWriter, r *http.Request) {
 
 	session, ok := auth.SessionFromContext(ctx)
 	if !ok {
-		http.Redirect(w, r, "/auth/login", http.StatusSeeOther)
+		http.Redirect(w, r, "/auth/login?next=/ui/my_votes", http.StatusSeeOther)
 		return
 	}
 
