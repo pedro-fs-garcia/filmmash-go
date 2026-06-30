@@ -43,6 +43,7 @@ func InitRouter(
 		authService,
 	)
 
+	router.Get("/", handler.RootHandler)
 	router.Handle("/metrics", promhttp.HandlerFor(metrics.Registry, promhttp.HandlerOpts{}))
 
 	router.Route("/auth", func(r chi.Router) {

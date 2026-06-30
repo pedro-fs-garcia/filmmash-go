@@ -390,3 +390,7 @@ func (h *Handler) MyVotesHandler(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	buf.WriteTo(w)
 }
+
+func (h *Handler) RootHandler(w http.ResponseWriter, r *http.Request) {
+	http.Redirect(w, r, "/ui", http.StatusFound)
+}

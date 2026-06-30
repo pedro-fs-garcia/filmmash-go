@@ -182,3 +182,14 @@ func NewSessionCookie(session Session, rawToken SessionToken) *SessionCookie {
 		SameSite: http.SameSiteLaxMode,
 	}
 }
+
+func DeleteSessionCookie() *http.Cookie {
+	return &http.Cookie{
+		Name:     "session",
+		Value:    "",
+		Path:     "/",
+		MaxAge:   -1,
+		HttpOnly: true,
+		Secure:   true,
+	}
+}

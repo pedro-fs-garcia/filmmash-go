@@ -68,6 +68,7 @@ func (h *Handler) LogoutHandler(w http.ResponseWriter, r *http.Request) {
 	cookie, err := r.Cookie("session")
 	if err != nil {
 		log.DebugContext(ctx, "Failed to extract session cookie", slog.String("error", err.Error()))
+		http.Redirect(w, r, "/ui/films", http.StatusFound)
 		http.Error(w, "Failed to verify session cookie", http.StatusBadRequest)
 		return
 	}
@@ -92,6 +93,7 @@ func (h *Handler) LogoutHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		return
 	}
+	http.SetCookie(w, DeleteSessionCookie())
 	http.Redirect(w, r, u.String(), http.StatusFound)
 }
 
