@@ -82,3 +82,7 @@ func (uc *RegisterVoteUC) RegisterVote(ctx context.Context, duelId uuid.UUID, wi
 	uc.metrics.VoteRegistered(strconv.Itoa(vote.WinnerID))
 	return vote, nil
 }
+
+func (uc *RegisterVoteUC) NewDuelFromWinner(ctx context.Context, winnerId int) (duel.Duel, error) {
+	return uc.duelService.ComposeDuel(ctx, winnerId)
+}

@@ -8,6 +8,7 @@ import (
 	"filmmash/internal/middleware"
 	"filmmash/internal/vote"
 	"log/slog"
+	"net/http"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -16,12 +17,11 @@ import (
 func InitRouter(
 	logger *slog.Logger,
 	metrics *metrics.Metrics,
-	filmService *film.Service,
-	duelService *duel.Service,
-	registerVoteUC *vote.RegisterVoteUC,
-	listVoteUC *vote.ListVotesUC,
-	authProvider *auth.Zitadel,
 	authService *auth.Service,
+	authHandler *auth.Handler,
+	filmHandler *film.Handler,
+	duelHandler *duel.Handler,
+	voteHandler *vote.Handler,
 ) *chi.Mux {
 	router := chi.NewRouter()
 	router.Use(middleware.Recoverer(logger))
@@ -29,21 +29,10 @@ func InitRouter(
 	router.Use(middleware.ResponseLogger(logger))
 	router.Use(metrics.HttpMetrics.MetricsMiddleware)
 
-	handler := NewHandler(
-		logger.With("component", "Handler"),
-		filmService,
-		duelService,
-		registerVoteUC,
-		listVoteUC,
-	)
+	router.Get("/", func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, "/ui", http.StatusFound)
+	})
 
-	authHandler := auth.NewHandler(
-		logger.With("component", "AuthHandler"),
-		authProvider,
-		authService,
-	)
-
-	router.Get("/", handler.RootHandler)
 	router.Handle("/metrics", promhttp.HandlerFor(metrics.Registry, promhttp.HandlerOpts{}))
 
 	router.Route("/auth", func(r chi.Router) {
@@ -53,15 +42,15 @@ func InitRouter(
 	})
 
 	router.Route("/ui", func(r chi.Router) {
-		r.Get("/", handler.DuelHandler)
-		r.Get("/films", handler.FilmsListHandler)
-		r.Get("/films/search", handler.SearchFilmsHandler)
-		r.Get("/film/{id}", handler.FilmHandler)
-		r.Get("/film/votes/{film_id}", handler.ListFilmVotes)
-		r.Get("/my_votes", authService.SessionMiddleware(handler.MyVotesHandler))
+		r.Get("/", duelHandler.DuelHandler)
+		r.Get("/films", filmHandler.FilmsListHandler)
+		r.Get("/films/search", filmHandler.SearchFilmsHandler)
+		r.Get("/film/{id}", filmHandler.FilmHandler)
+		r.Get("/film/votes/{film_id}", voteHandler.ListFilmVotes)
+		r.Get("/my_votes", authService.SessionMiddleware(voteHandler.MyVotesHandler))
 		r.Post(
 			"/duel/{duel_id}/result",
-			authService.SessionMiddleware(handler.DuelResultHandler),
+			authService.SessionMiddleware(voteHandler.DuelResultHandler),
 		)
 	})
 

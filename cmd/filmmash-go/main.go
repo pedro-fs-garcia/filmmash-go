@@ -69,7 +69,16 @@ func run() error {
 	sessionRepo := auth.NewRepository(pool)
 	authService := auth.NewService(provider, sessionRepo)
 
-	router := web.InitRouter(logger.With("package", "web"), m, filmService, duelService, registerVoteUC, listVoteUC, provider, authService)
+	authHandler := auth.NewHandler(
+		logger.With("component", "AuthHandler"),
+		provider,
+		authService,
+	)
+	filmHandler := film.NewHandler(logger.With("package", "film"), filmService)
+	duelHandler := duel.NewHandler(logger.With("package", "duel"), duelService)
+	voteHandler := vote.NewHandler(logger.With("package", "vote"), registerVoteUC, listVoteUC)
+
+	router := web.InitRouter(logger.With("package", "web"), m, authService, authHandler, filmHandler, duelHandler, voteHandler)
 
 	pendingDuels, err := duelService.CountPending(context.Background())
 	if err != nil {
