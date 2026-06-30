@@ -125,6 +125,29 @@ func (s *Service) EndSession(ctx context.Context, tokenHash []byte) (string, err
 	return session.IDToken, nil
 }
 
+func NewReturntoCookie(url string) *http.Cookie {
+	return &http.Cookie{
+		Name:     "return_to",
+		Value:    url,
+		Path:     "/",
+		HttpOnly: true,
+		Secure:   true,
+		MaxAge:   300,
+		SameSite: http.SameSiteLaxMode,
+	}
+}
+
+func DeleteReturnToCookie() *http.Cookie {
+	return &http.Cookie{
+		Name:     "return_to",
+		Value:    "",
+		Path:     "/",
+		MaxAge:   -1, // <0 writes "Max-Age: 0" → delete now
+		HttpOnly: true,
+		Secure:   true,
+	}
+}
+
 func NewOIDCFlowCookie(state, verifier string) *OIDCFlowCookie {
 	return &http.Cookie{
 		Name:     "oidc_flow",
@@ -157,5 +180,16 @@ func NewSessionCookie(session Session, rawToken SessionToken) *SessionCookie {
 		Secure:   true,
 		MaxAge:   int(time.Until(session.ExpiresAt).Seconds()),
 		SameSite: http.SameSiteLaxMode,
+	}
+}
+
+func DeleteSessionCookie() *http.Cookie {
+	return &http.Cookie{
+		Name:     "session",
+		Value:    "",
+		Path:     "/",
+		MaxAge:   -1,
+		HttpOnly: true,
+		Secure:   true,
 	}
 }

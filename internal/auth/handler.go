@@ -32,6 +32,11 @@ func (h *Handler) LoginHandler(w http.ResponseWriter, r *http.Request) {
 		slog.String("request_id", reqId),
 	)
 
+	returnTo := r.URL.Query().Get("next")
+	if returnTo == "" {
+		returnTo = "/"
+	}
+
 	state := randString()
 	verifier := randString()
 	sum := sha256.Sum256([]byte(verifier))
@@ -48,6 +53,7 @@ func (h *Handler) LoginHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	http.SetCookie(w, NewOIDCFlowCookie(state, verifier))
+	http.SetCookie(w, NewReturntoCookie(returnTo))
 	http.Redirect(w, r, authorizeUrl.String(), http.StatusFound)
 }
 
@@ -62,6 +68,7 @@ func (h *Handler) LogoutHandler(w http.ResponseWriter, r *http.Request) {
 	cookie, err := r.Cookie("session")
 	if err != nil {
 		log.DebugContext(ctx, "Failed to extract session cookie", slog.String("error", err.Error()))
+		http.Redirect(w, r, "/ui/films", http.StatusFound)
 		http.Error(w, "Failed to verify session cookie", http.StatusBadRequest)
 		return
 	}
@@ -86,6 +93,7 @@ func (h *Handler) LogoutHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		return
 	}
+	http.SetCookie(w, DeleteSessionCookie())
 	http.Redirect(w, r, u.String(), http.StatusFound)
 }
 
@@ -153,7 +161,14 @@ func (h *Handler) CallbackHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "failed to init session", http.StatusInternalServerError)
 	}
 
+	var returnTo = "/ui"
+	returnToCookie, _ := r.Cookie("return_to")
+	if returnToCookie.Value != "" {
+		returnTo = returnToCookie.Value
+	}
+
 	http.SetCookie(w, NewSessionCookie(session, rawToken))
 	http.SetCookie(w, DeleteOIDCFlowCookie())
-	http.Redirect(w, r, "/ui", http.StatusFound)
+	http.SetCookie(w, DeleteReturnToCookie())
+	http.Redirect(w, r, returnTo, http.StatusFound)
 }
