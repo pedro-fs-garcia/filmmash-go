@@ -58,6 +58,7 @@ func newSessionDB(userID uuid.UUID, tokenHash string) auth.SessionDB {
 		Scopes:               &scopes,
 		IPAddress:            netip.MustParseAddr("198.51.100.7"),
 		UserAgent:            &userAgent,
+		Roles:                []string{"admin", "voter"},
 		ExpiresAt:            time.Now().Add(24 * time.Hour).UTC().Truncate(time.Microsecond),
 	}
 }
@@ -82,6 +83,9 @@ func assertSessionMatches(t *testing.T, got auth.Session, want auth.SessionDB) {
 	wantScopes := strings.Split(*want.Scopes, " ")
 	if !reflect.DeepEqual(got.Scopes, wantScopes) {
 		t.Errorf("Scopes = %v, want %v", got.Scopes, wantScopes)
+	}
+	if !reflect.DeepEqual(got.Roles, want.Roles) {
+		t.Errorf("Roles = %v, want %v", got.Roles, want.Roles)
 	}
 	if got.UserAgent != *want.UserAgent {
 		t.Errorf("UserAgent = %q, want %q", got.UserAgent, *want.UserAgent)

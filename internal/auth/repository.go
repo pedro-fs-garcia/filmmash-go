@@ -4,6 +4,7 @@ import (
 	"context"
 	"filmmash/internal/database"
 	"fmt"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -60,8 +61,8 @@ func (r *repository) Insert(ctx context.Context, session *SessionDB) error {
 	const query = `
 	INSERT INTO sessions (
 		token_hash, user_id, access_token, access_token_expires_at, refresh_token, 
-		id_token, scopes, ip_address, user_agent, expires_at
-	) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+		id_token, scopes, ip_address, user_agent, roles, expires_at
+	) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
 	RETURNING id
 	`
 	q := database.ExtractTx(ctx, r.pool)
@@ -75,6 +76,7 @@ func (r *repository) Insert(ctx context.Context, session *SessionDB) error {
 		session.Scopes,
 		session.IPAddress,
 		session.UserAgent,
+		session.Roles,
 		session.ExpiresAt,
 	).Scan(&session.ID)
 
@@ -84,7 +86,7 @@ func (r *repository) Insert(ctx context.Context, session *SessionDB) error {
 func (r *repository) GetByTokenHash(ctx context.Context, tokenHash []byte) (Session, error) {
 	query := `
 	SELECT id, token_hash, user_id, access_token, access_token_expires_at,
-	       refresh_token, id_token, scopes, ip_address, user_agent,
+	       refresh_token, id_token, scopes, ip_address, user_agent, roles,
 	       created_at, last_seen_at, expires_at
 	FROM sessions WHERE token_hash = $1`
 
@@ -128,4 +130,37 @@ func (r *repository) InsertEvent(ctx context.Context, se *SessionEvent) error {
 		return database.ParseDBError("inserting to session_events", err)
 	}
 	return nil
+}
+
+func (r *repository) DeleteExpiredSessions(ctx context.Context) (int64, error) {
+	query := `
+		WITH expired_sessions AS (
+			SELECT id FROM sessions 
+			WHERE expires_at < CURRENT_TIMESTAMP 
+			LIMIT 5000 
+			FOR UPDATE SKIP LOCKED
+		)
+		DELETE FROM sessions WHERE id IN (SELECT id FROM expired_sessions)
+	`
+	var total int64
+
+	// Do not allow context-injected transactions to wrap this operation
+	pool := r.pool
+	for {
+		if err := ctx.Err(); err != nil {
+			return 0, err
+		}
+		tag, err := pool.Exec(ctx, query)
+		if err != nil {
+			return 0, database.ParseDBError("deleting expired sessions", err)
+		}
+		if tag.RowsAffected() == 0 {
+			break
+		}
+		total += tag.RowsAffected()
+
+		// Throttle execution to prevent IO/CPU spikes
+		time.Sleep(50 * time.Millisecond)
+	}
+	return total, nil
 }

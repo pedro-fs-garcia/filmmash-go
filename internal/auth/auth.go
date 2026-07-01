@@ -47,6 +47,7 @@ type SessionDB struct {
 	Scopes               *string    `db:"scopes"`
 	IPAddress            netip.Addr `db:"ip_address"`
 	UserAgent            *string    `db:"user_agent"`
+	Roles                []string   `db:"roles"`
 	CreatedAt            time.Time  `db:"created_at"`
 	LastSeenAt           time.Time  `db:"last_seen_at"`
 	ExpiresAt            time.Time  `db:"expires_at"`
@@ -71,21 +72,31 @@ type Session struct {
 	Scopes               []string
 	IPAddress            netip.Addr
 	UserAgent            string
+	Roles                []string
 	CreatedAt            time.Time
 	LastSeenAt           time.Time
 	ExpiresAt            time.Time
 }
 
 type UserInfo struct {
-	Sub               string `json:"sub"`
-	Email             string `json:"email"`
-	Name              string `json:"name"`
-	EmailVerified     bool   `json:"email_verified"`
-	FamilyName        string `json:"family_name"`
-	GivenName         string `json:"given_name"`
-	Locale            string `json:"locale"`
-	PreferredUsername string `json:"preferred_username"`
-	UpdatedAt         int64  `json:"updated_at"`
+	Sub               string       `json:"sub"`
+	Email             string       `json:"email"`
+	Name              string       `json:"name"`
+	EmailVerified     bool         `json:"email_verified"`
+	FamilyName        string       `json:"family_name"`
+	GivenName         string       `json:"given_name"`
+	Locale            string       `json:"locale"`
+	PreferredUsername string       `json:"preferred_username"`
+	UpdatedAt         int64        `json:"updated_at"`
+	Roles             ZitadelRoles `json:"urn:zitadel:iam:org:project:roles"`
+}
+
+func (u UserInfo) RoleKeys() []string {
+	roleKeys := make([]string, 0, len(u.Roles))
+	for role := range u.Roles {
+		roleKeys = append(roleKeys, role)
+	}
+	return roleKeys
 }
 
 func SessionToSessionDB(session Session, tokenHash []byte) SessionDB {
@@ -101,6 +112,7 @@ func SessionToSessionDB(session Session, tokenHash []byte) SessionDB {
 		Scopes:               &scope,
 		IPAddress:            session.IPAddress,
 		UserAgent:            &session.UserAgent,
+		Roles:                session.Roles,
 		CreatedAt:            session.CreatedAt,
 		LastSeenAt:           session.LastSeenAt,
 		ExpiresAt:            session.ExpiresAt,
@@ -119,6 +131,7 @@ func SessionDBToSession(sdb SessionDB) Session {
 		RefreshToken: string(sdb.RefreshToken),
 		IDToken:      string(sdb.IDToken),
 		IPAddress:    sdb.IPAddress,
+		Roles:        sdb.Roles,
 		CreatedAt:    sdb.CreatedAt,
 		LastSeenAt:   sdb.LastSeenAt,
 		ExpiresAt:    sdb.ExpiresAt,

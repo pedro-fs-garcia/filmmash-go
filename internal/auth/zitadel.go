@@ -12,6 +12,10 @@ import (
 	"github.com/coreos/go-oidc/v3/oidc"
 )
 
+const ZitadelRolesClaim = "urn:zitadel:iam:org:project:roles"
+
+type ZitadelRoles map[string]map[string]string
+
 type Zitadel struct {
 	clientId     string
 	clientSecret string

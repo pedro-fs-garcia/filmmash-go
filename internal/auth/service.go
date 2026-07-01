@@ -6,6 +6,8 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"filmmash/internal/database"
+	"fmt"
+	"log/slog"
 	"net/http"
 	"time"
 )
@@ -24,16 +26,19 @@ func Sha256Hash(raw string) []byte {
 }
 
 type Service struct {
+	logger     *slog.Logger
 	provider   *Zitadel
 	repository *repository
 	txManager  *database.TxManager
 }
 
 func NewService(
+	logger *slog.Logger,
 	provider *Zitadel,
 	repo *repository,
 ) *Service {
 	return &Service{
+		logger:     logger.With("component", "Service"),
 		provider:   provider,
 		repository: repo,
 		txManager:  database.NewTxManager(repo.pool),
@@ -58,7 +63,7 @@ func (s *Service) InitSession(ctx context.Context, tokenResponse TokenResponse) 
 			return err
 		}
 
-		_, err = s.provider.GetUserInfo(txCtx, tokenResponse.AccessToken)
+		userInfo, err := s.provider.GetUserInfo(ctx, tokenResponse.AccessToken)
 
 		scopes := "openid profile email offline_access"
 		accessTokenExpiresAt := time.Now().Add(time.Duration(tokenResponse.ExpiresIn) * time.Second)
@@ -69,6 +74,7 @@ func (s *Service) InitSession(ctx context.Context, tokenResponse TokenResponse) 
 			AccessTokenExpiresAt: &accessTokenExpiresAt,
 			IDToken:              []byte(tokenResponse.IDToken),
 			Scopes:               &scopes,
+			Roles:                userInfo.RoleKeys(),
 			ExpiresAt:            time.Now().Add(time.Duration(360000) * time.Second),
 		}
 
@@ -123,6 +129,26 @@ func (s *Service) EndSession(ctx context.Context, tokenHash []byte) (string, err
 		return "", err
 	}
 	return session.IDToken, nil
+}
+
+func (s *Service) DeleteExpiredSessionsJob(ctx context.Context, duration time.Duration) {
+	log := s.logger.With("method", "DeleteExpiredSessionsJob")
+	ticker := time.NewTicker(duration)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ticker.C:
+			total, err := s.repository.DeleteExpiredSessions(ctx)
+			if err != nil {
+				log.ErrorContext(ctx, "deleting expired sessions")
+			} else {
+				log.Info(fmt.Sprintf("deleted %d expired sessions", total))
+			}
+		case <-ctx.Done():
+			return
+		}
+	}
 }
 
 func NewReturntoCookie(url string) *http.Cookie {

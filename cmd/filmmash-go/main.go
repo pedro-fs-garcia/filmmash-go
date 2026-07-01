@@ -14,6 +14,7 @@ import (
 	"log"
 	"log/slog"
 	"os"
+	"time"
 )
 
 func main() {
@@ -67,7 +68,7 @@ func run() error {
 	)
 
 	sessionRepo := auth.NewRepository(pool)
-	authService := auth.NewService(provider, sessionRepo)
+	authService := auth.NewService(logger.With("package", "film"), provider, sessionRepo)
 
 	authHandler := auth.NewHandler(
 		logger.With("component", "AuthHandler"),
@@ -97,6 +98,11 @@ func run() error {
 		panic(err)
 	}
 	m.VoteMetrics.SeedTotal(totalVotes)
+
+	cronCtx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	go authService.DeleteExpiredSessionsJob(cronCtx, 5*time.Hour)
 
 	_, err = InitServer(cfg.Port, router)
 	if err != nil {
