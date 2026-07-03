@@ -63,5 +63,10 @@ func InitRouter(
 		r.Get("/users", adminHandler.ListUsersPaginatedHandler)
 	})
 
+	router.Route("/user", func(r chi.Router) {
+		r.Use(authService.SessionCtx)
+		r.Get("/console", authHandler.UserConsoleHandler)
+	})
+
 	return router
 }

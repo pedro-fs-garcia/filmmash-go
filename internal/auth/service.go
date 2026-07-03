@@ -9,6 +9,8 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"net/url"
+	"strings"
 	"time"
 )
 
@@ -45,16 +47,17 @@ func NewService(
 	}
 }
 
-func (s *Service) InitSession(ctx context.Context, tokenResponse TokenResponse) (Session, SessionToken, error) {
+func (s *Service) InitSession(ctx context.Context, tokenResponse TokenResponse) (Session, SessionToken, string, error) {
 	rawToken := randString()
 	tokenHash := Sha256Hash(rawToken)
 
 	idToken, err := s.provider.VerifyIdToken(ctx, tokenResponse.IDToken)
 	if err != nil {
-		return Session{}, "", err
+		return Session{}, "", "", err
 	}
 
 	var sessionDB SessionDB
+	var displayName string
 
 	err = s.txManager.ExecTx(ctx, func(txCtx context.Context) error {
 		user := User{ZitadelSub: idToken.Subject}
@@ -64,6 +67,10 @@ func (s *Service) InitSession(ctx context.Context, tokenResponse TokenResponse) 
 		}
 
 		userInfo, err := s.provider.GetUserInfo(ctx, tokenResponse.AccessToken)
+		if err != nil {
+			return err
+		}
+		displayName = userInfo.Name
 
 		scopes := "openid profile email offline_access"
 		accessTokenExpiresAt := time.Now().Add(time.Duration(tokenResponse.ExpiresIn) * time.Second)
@@ -97,10 +104,10 @@ func (s *Service) InitSession(ctx context.Context, tokenResponse TokenResponse) 
 	})
 
 	if err != nil {
-		return Session{}, "", err
+		return Session{}, "", "", err
 	}
 
-	return SessionDBToSession(sessionDB), rawToken, nil
+	return SessionDBToSession(sessionDB), rawToken, displayName, nil
 }
 
 func (s *Service) EndSession(ctx context.Context, tokenHash []byte) (string, error) {
@@ -217,5 +224,25 @@ func DeleteSessionCookie() *http.Cookie {
 		MaxAge:   -1,
 		HttpOnly: true,
 		Secure:   true,
+	}
+}
+
+func NewUserNameCookie(name string, expiresAt time.Time) *http.Cookie {
+	return &http.Cookie{
+		Name:     "user_name",
+		Value:    strings.ReplaceAll(url.QueryEscape(name), "+", "%20"),
+		Path:     "/",
+		Secure:   true,
+		MaxAge:   int(time.Until(expiresAt).Seconds()),
+		SameSite: http.SameSiteLaxMode,
+	}
+}
+
+func DeleteUserNameCookie() *http.Cookie {
+	return &http.Cookie{
+		Name:   "user_name",
+		Value:  "",
+		Path:   "/",
+		MaxAge: -1,
 	}
 }

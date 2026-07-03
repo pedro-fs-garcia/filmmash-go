@@ -94,6 +94,7 @@ func (h *Handler) LogoutHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	http.SetCookie(w, DeleteSessionCookie())
+	http.SetCookie(w, DeleteUserNameCookie())
 	http.Redirect(w, r, u.String(), http.StatusFound)
 }
 
@@ -155,7 +156,7 @@ func (h *Handler) CallbackHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	session, rawToken, err := h.service.InitSession(ctx, tokenResp)
+	session, rawToken, displayName, err := h.service.InitSession(ctx, tokenResp)
 	if err != nil {
 		log.ErrorContext(ctx, "Failed to init session", slog.String("error", err.Error()))
 		http.Error(w, "failed to init session", http.StatusInternalServerError)
@@ -168,7 +169,12 @@ func (h *Handler) CallbackHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	http.SetCookie(w, NewSessionCookie(session, rawToken))
+	http.SetCookie(w, NewUserNameCookie(displayName, session.AccessTokenExpiresAt))
 	http.SetCookie(w, DeleteOIDCFlowCookie())
 	http.SetCookie(w, DeleteReturnToCookie())
 	http.Redirect(w, r, returnTo, http.StatusFound)
+}
+
+func (h *Handler) UserConsoleHandler(w http.ResponseWriter, r *http.Request) {
+	http.Redirect(w, r, h.provider.providerUrl+"/ui/console/users/me", http.StatusFound)
 }
