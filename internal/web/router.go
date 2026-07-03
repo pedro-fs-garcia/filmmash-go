@@ -1,6 +1,7 @@
 package web
 
 import (
+	"filmmash/internal/admin"
 	"filmmash/internal/auth"
 	"filmmash/internal/duel"
 	"filmmash/internal/film"
@@ -22,6 +23,7 @@ func InitRouter(
 	filmHandler *film.Handler,
 	duelHandler *duel.Handler,
 	voteHandler *vote.Handler,
+	adminHandler *admin.Handler,
 ) *chi.Mux {
 	router := chi.NewRouter()
 	router.Use(middleware.Recoverer(logger))
@@ -52,6 +54,13 @@ func InitRouter(
 			"/duel/{duel_id}/result",
 			authService.SessionMiddleware(voteHandler.DuelResultHandler),
 		)
+	})
+
+	router.Route("/admin", func(r chi.Router) {
+		r.Use(authService.SessionCtx)
+		r.Use(auth.RequiresAdmin)
+		r.Get("/", adminHandler.ListUsersPaginatedHandler)
+		r.Get("/users", adminHandler.ListUsersPaginatedHandler)
 	})
 
 	return router

@@ -480,6 +480,81 @@
             color: var(--gold-bright);
         }
 
+        /* ===================== Admin dashboard =================== */
+        .admin-users {
+            max-width: min(95vw, 960px);
+            margin: 1.5rem auto 0;
+            overflow-x: auto;
+        }
+
+        .admin-user-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.85rem;
+            background: linear-gradient(180deg, var(--noir-panel-2), var(--noir-panel));
+            border: 1px solid var(--line);
+            outline: 1px solid rgba(0, 0, 0, 0.6);
+            outline-offset: -5px;
+            box-shadow: 0 8px 22px rgba(0, 0, 0, 0.5);
+        }
+
+        .admin-user-table thead th {
+            text-align: left;
+            padding: 0.75rem 1rem;
+            color: var(--gold-bright);
+            font-size: 0.7rem;
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            border-bottom: 1px solid var(--line);
+        }
+
+        .admin-user-table th.num,
+        .admin-user-table td.num {
+            text-align: right;
+        }
+
+        .admin-user-row td {
+            padding: 0.7rem 1rem;
+            border-bottom: 1px solid var(--line);
+            color: var(--ivory-dim);
+            vertical-align: top;
+        }
+
+        .admin-user-row:hover td {
+            color: var(--ivory);
+            background: rgba(201, 162, 75, 0.06);
+        }
+
+        .admin-user-name {
+            color: var(--ivory);
+        }
+
+        .admin-user-uuid,
+        .admin-user-sub,
+        .admin-user-authzid {
+            font-size: 0.72rem;
+            color: var(--ivory-dim);
+            overflow-wrap: anywhere;
+        }
+
+        .admin-user-login,
+        .admin-user-roles {
+            font-size: 0.75rem;
+            overflow-wrap: anywhere;
+        }
+
+        .admin-user-sentinel td {
+            height: 1px;
+            padding: 0;
+            border: 0;
+        }
+
+        .admin-empty {
+            text-align: center;
+            color: var(--ivory-dim);
+            opacity: 0.7;
+        }
+
         /* ===================== Film modal ======================== */
         /* Hide the fixed hamburger while a modal is open so it can't
            overlap the dialog on small screens. */

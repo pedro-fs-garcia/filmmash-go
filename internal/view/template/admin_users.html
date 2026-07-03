@@ -1,0 +1,22 @@
+{{ define "adminUsers" }}
+{{ range .Users }}
+<tr class="admin-user-row">
+    <td class="admin-user-uuid">{{ .User.Id }}</td>
+    <td class="admin-user-sub">{{ .User.ZitadelSub }}</td>
+    <td class="admin-user-authzid">{{ with .Authz }}{{ .UserID }}{{ end }}</td>
+    <td class="admin-user-name">{{ with .Authz }}{{ .DisplayName }}{{ end }}</td>
+    <td class="admin-user-login">{{ with .Authz }}{{ .LoginName }}{{ end }}</td>
+    <td class="admin-user-roles">{{ with .Authz }}{{ range $i, $r := .Roles }}{{ if $i }}, {{ end }}{{ $r }}{{ end }}{{ end }}</td>
+    <td class="admin-user-date">{{ .User.CreatedAt.Format "Jan 2, 2006" }}</td>
+    <td class="num">{{ .User.Votes }}</td>
+</tr>
+{{ end }}
+{{ if .Users }}
+<tr class="admin-user-sentinel"
+    hx-get="/admin/users?size={{ .Next.Size }}&last_seen_id={{ .Next.LastSeenId }}"
+    hx-trigger="revealed"
+    hx-swap="outerHTML">
+    <td colspan="8"></td>
+</tr>
+{{ end }}
+{{ end }}

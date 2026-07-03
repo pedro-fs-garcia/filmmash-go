@@ -1,0 +1,30 @@
+{{ template "base" . }}
+
+{{ define "content" }}
+
+<h1>Admin — Users</h1>
+
+<div class="admin-users">
+    <table class="admin-user-table">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Zitadel sub</th>
+                <th>Authz ID</th>
+                <th>Display name</th>
+                <th>Login name</th>
+                <th>Roles</th>
+                <th>Joined</th>
+                <th class="num">Votes</th>
+            </tr>
+        </thead>
+        <tbody id="admin-user-rows">
+            {{ template "adminUsers" . }}
+        </tbody>
+    </table>
+    {{ if not .Users }}
+    <p class="admin-empty">No users to show.</p>
+    {{ end }}
+</div>
+
+{{ end }}

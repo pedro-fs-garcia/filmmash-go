@@ -36,6 +36,13 @@ type User struct {
 	CreatedAt  time.Time
 }
 
+type UserAuthz struct {
+	UserID      string
+	LoginName   string
+	DisplayName string
+	Roles       []string
+}
+
 type SessionDB struct {
 	ID                   uuid.UUID  `db:"id"`
 	TokenHash            []byte     `db:"token_hash"`

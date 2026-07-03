@@ -17,9 +17,13 @@ type Config struct {
 
 	TmdbApitoken string `env:"TMDB_API_TOKEN" envDefault:""`
 
-	ZitadelClientId     string `env:"ZITADEL_CLIENT_ID"`
-	ZitadelClientSecret string `env:"ZITADEL_CLIENT_SECRET"`
-	ZitadelBaseURL      string `env:"ZITADEL_BASE_URL"`
+	ZitadelClientId        string `env:"ZITADEL_CLIENT_ID"`
+	ZitadelClientSecret    string `env:"ZITADEL_CLIENT_SECRET"`
+	ZitadelBaseURL         string `env:"ZITADEL_BASE_URL"`
+	ZitadelM2MClientId     string `env:"ZITADEL_M2M_CLIENT_ID"`
+	ZitadelM2MClientSecret string `env:"ZITADEL_M2M_CLIENT_SECRET"`
+
+	AppBaseURL string `env:"APP_BASE_URL" envDefault:"http://localhost:8080"`
 }
 
 func loadDotenvFile() {

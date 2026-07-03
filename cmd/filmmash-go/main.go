@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"filmmash/internal/admin"
 	"filmmash/internal/auth"
 	"filmmash/internal/config"
 	"filmmash/internal/database"
@@ -10,6 +11,7 @@ import (
 	"filmmash/internal/metrics"
 	"filmmash/internal/vote"
 	"filmmash/internal/web"
+	"filmmash/internal/zitadel"
 	"fmt"
 	"log"
 	"log/slog"
@@ -61,10 +63,19 @@ func run() error {
 	registerVoteUC := vote.NewRegisterVoteUC(m.VoteMetrics, voteRepo, filmService, duelService)
 	listVoteUC := vote.NewListVotesUC(voteRepo)
 
+	zClient := zitadel.NewMachineTokenSource(
+		logger.With("package", "zitadel"),
+		cfg.ZitadelBaseURL,
+		cfg.ZitadelM2MClientId,
+		cfg.ZitadelM2MClientSecret,
+	)
+
 	provider := auth.NewZitadelProvider(
 		cfg.ZitadelClientId,
 		cfg.ZitadelClientSecret,
 		cfg.ZitadelBaseURL,
+		cfg.AppBaseURL,
+		zClient,
 	)
 
 	sessionRepo := auth.NewRepository(pool)
@@ -79,7 +90,11 @@ func run() error {
 	duelHandler := duel.NewHandler(logger.With("package", "duel"), duelService)
 	voteHandler := vote.NewHandler(logger.With("package", "vote"), registerVoteUC, listVoteUC)
 
-	router := web.InitRouter(logger.With("package", "web"), m, authService, authHandler, filmHandler, duelHandler, voteHandler)
+	adminRepo := admin.NewRepository(pool)
+	adminService := admin.NewService(adminRepo, provider)
+	adminHandler := admin.NewHandler(logger.With("package", "admin"), adminService)
+
+	router := web.InitRouter(logger.With("package", "web"), m, authService, authHandler, filmHandler, duelHandler, voteHandler, adminHandler)
 
 	pendingDuels, err := duelService.CountPending(context.Background())
 	if err != nil {

@@ -43,4 +43,12 @@ func init() {
 		"template/base.html",
 		"template/my_votes.html",
 	))
+	TemplateCache["adminDashboardPage"] = template.Must(template.ParseFS(TemplatesFS,
+		"template/base.html",
+		"template/admin_dashboard.html",
+		"template/admin_users.html",
+	))
+	TemplateCache["adminUsers"] = template.Must(template.ParseFS(TemplatesFS,
+		"template/admin_users.html",
+	))
 }
