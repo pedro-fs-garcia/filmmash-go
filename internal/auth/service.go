@@ -8,9 +8,6 @@ import (
 	"filmmash/internal/database"
 	"fmt"
 	"log/slog"
-	"net/http"
-	"net/url"
-	"strings"
 	"time"
 )
 
@@ -156,94 +153,5 @@ func (s *Service) DeleteExpiredSessionsJob(ctx context.Context, duration time.Du
 		case <-ctx.Done():
 			return
 		}
-	}
-}
-
-func NewReturntoCookie(url string) *http.Cookie {
-	return &http.Cookie{
-		Name:     "return_to",
-		Value:    url,
-		Path:     "/",
-		HttpOnly: true,
-		Secure:   true,
-		MaxAge:   300,
-		SameSite: http.SameSiteLaxMode,
-	}
-}
-
-func DeleteReturnToCookie() *http.Cookie {
-	return &http.Cookie{
-		Name:     "return_to",
-		Value:    "",
-		Path:     "/",
-		MaxAge:   -1, // <0 writes "Max-Age: 0" → delete now
-		HttpOnly: true,
-		Secure:   true,
-	}
-}
-
-func NewOIDCFlowCookie(state, verifier string) *OIDCFlowCookie {
-	return &http.Cookie{
-		Name:     "oidc_flow",
-		Value:    state + ":" + verifier,
-		Path:     "/",
-		HttpOnly: true,
-		Secure:   true,
-		MaxAge:   300,
-		SameSite: http.SameSiteLaxMode,
-	}
-}
-
-func DeleteOIDCFlowCookie() *http.Cookie {
-	return &http.Cookie{
-		Name:     "oidc_flow",
-		Value:    "",
-		Path:     "/",
-		MaxAge:   -1, // <0 writes "Max-Age: 0" → delete now
-		HttpOnly: true,
-		Secure:   true,
-	}
-}
-
-func NewSessionCookie(session Session, rawToken SessionToken) *SessionCookie {
-	return &SessionCookie{
-		Name:     "session",
-		Value:    rawToken,
-		Path:     "/",
-		HttpOnly: true,
-		Secure:   true,
-		MaxAge:   int(time.Until(session.ExpiresAt).Seconds()),
-		SameSite: http.SameSiteLaxMode,
-	}
-}
-
-func DeleteSessionCookie() *http.Cookie {
-	return &http.Cookie{
-		Name:     "session",
-		Value:    "",
-		Path:     "/",
-		MaxAge:   -1,
-		HttpOnly: true,
-		Secure:   true,
-	}
-}
-
-func NewUserNameCookie(name string, expiresAt time.Time) *http.Cookie {
-	return &http.Cookie{
-		Name:     "user_name",
-		Value:    strings.ReplaceAll(url.QueryEscape(name), "+", "%20"),
-		Path:     "/",
-		Secure:   true,
-		MaxAge:   int(time.Until(expiresAt).Seconds()),
-		SameSite: http.SameSiteLaxMode,
-	}
-}
-
-func DeleteUserNameCookie() *http.Cookie {
-	return &http.Cookie{
-		Name:   "user_name",
-		Value:  "",
-		Path:   "/",
-		MaxAge: -1,
 	}
 }

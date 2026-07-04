@@ -49,7 +49,7 @@ func (p *Provider) Login(w http.ResponseWriter, r *http.Request) {
 	codeChallenge := oauth2.S256ChallengeOption(pkceVerifier)
 	authorizeUrl := p.oauth.AuthCodeURL(state, codeChallenge)
 
-	http.SetCookie(w, NewOIDCFlowCookie(state, pkceVerifier))
+	SetOIDCFlowCookie(w, state, pkceVerifier)
 	http.Redirect(w, r, authorizeUrl, http.StatusFound)
 }
 

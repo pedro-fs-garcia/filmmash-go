@@ -118,8 +118,3 @@ func (c *TmdbClient) GetTopRated(page int) ([]Movie, error) {
 	}
 	return movies, nil
 }
-
-// func (c *TmdbClient) GetPosterImage(imgRef string) {
-// 	url := fmt.Sprintf("%s/t/p/w500/%s", c.baseURL, imgRef)
-
-// }

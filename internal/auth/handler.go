@@ -52,8 +52,8 @@ func (h *Handler) LoginHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	http.SetCookie(w, NewOIDCFlowCookie(state, verifier))
-	http.SetCookie(w, NewReturntoCookie(returnTo))
+	SetOIDCFlowCookie(w, state, verifier)
+	SetReturnToCookie(w, returnTo)
 	http.Redirect(w, r, authorizeUrl.String(), http.StatusFound)
 }
 
@@ -93,8 +93,8 @@ func (h *Handler) LogoutHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		return
 	}
-	http.SetCookie(w, DeleteSessionCookie())
-	http.SetCookie(w, DeleteUserNameCookie())
+	DropSessionCookie(w)
+	DropUserNameCookie(w)
 	http.Redirect(w, r, u.String(), http.StatusFound)
 }
 
@@ -168,10 +168,10 @@ func (h *Handler) CallbackHandler(w http.ResponseWriter, r *http.Request) {
 		returnTo = returnToCookie.Value
 	}
 
-	http.SetCookie(w, NewSessionCookie(session, rawToken))
-	http.SetCookie(w, NewUserNameCookie(displayName, session.AccessTokenExpiresAt))
-	http.SetCookie(w, DeleteOIDCFlowCookie())
-	http.SetCookie(w, DeleteReturnToCookie())
+	SetSessionCookie(w, session, rawToken)
+	SetUserNameCookie(w, displayName, session.AccessTokenExpiresAt)
+	DropOIDCFlowCookie(w)
+	DropReturnToCookie(w)
 	http.Redirect(w, r, returnTo, http.StatusFound)
 }
 
