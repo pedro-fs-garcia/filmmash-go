@@ -2,21 +2,12 @@ package main
 
 import (
 	"context"
-	"filmmash/internal/admin"
-	"filmmash/internal/auth"
 	"filmmash/internal/config"
 	"filmmash/internal/database"
-	"filmmash/internal/duel"
-	"filmmash/internal/film"
-	"filmmash/internal/metrics"
-	"filmmash/internal/vote"
-	"filmmash/internal/web"
-	"filmmash/internal/zitadel"
 	"fmt"
 	"log"
 	"log/slog"
 	"os"
-	"time"
 )
 
 func main() {
@@ -50,80 +41,22 @@ func run() error {
 
 	pool, err := database.Pool(ctx, dsn)
 	if err != nil {
+		logger.ErrorContext(ctx, "failed to create database pool of connection", slog.String("error", err.Error()))
 		panic(err)
 	}
 
-	m := metrics.NewMetrics()
-
-	filmService := film.NewService(pool)
-
-	duelService := duel.NewService(m.DuelMetrics, pool, filmService)
-
-	voteRepo := vote.NewRepository(pool)
-	registerVoteUC := vote.NewRegisterVoteUC(m.VoteMetrics, voteRepo, filmService, duelService)
-	listVoteUC := vote.NewListVotesUC(voteRepo)
-
-	zClient := zitadel.NewMachineTokenSource(
-		logger.With("package", "zitadel"),
-		cfg.ZitadelBaseURL,
-		cfg.ZitadelM2MClientId,
-		cfg.ZitadelM2MClientSecret,
-	)
-
-	provider := auth.NewZitadelProvider(
-		cfg.ZitadelClientId,
-		cfg.ZitadelClientSecret,
-		cfg.ZitadelBaseURL,
-		cfg.AppBaseURL,
-		zClient,
-	)
-
-	sessionRepo := auth.NewRepository(pool)
-	authService := auth.NewService(logger.With("package", "film"), provider, sessionRepo)
-
-	authHandler := auth.NewHandler(
-		logger.With("component", "AuthHandler"),
-		provider,
-		authService,
-	)
-	filmHandler := film.NewHandler(logger.With("package", "film"), filmService)
-	duelHandler := duel.NewHandler(logger.With("package", "duel"), duelService)
-	voteHandler := vote.NewHandler(logger.With("package", "vote"), registerVoteUC, listVoteUC)
-
-	adminRepo := admin.NewRepository(pool)
-	adminService := admin.NewService(adminRepo, provider)
-	adminHandler := admin.NewHandler(logger.With("package", "admin"), adminService)
-
-	router := web.InitRouter(logger.With("package", "web"), m, authService, authHandler, filmHandler, duelHandler, voteHandler, adminHandler)
-
-	pendingDuels, err := duelService.CountPending(context.Background())
+	router, err := initRouter(ctx, cfg, pool, logger)
 	if err != nil {
+		logger.ErrorContext(ctx, "failed to wire router", slog.String("error", err.Error()))
 		panic(err)
 	}
-	m.DuelMetrics.SeedPending(pendingDuels)
 
-	totalFilms, err := filmService.CountTotal(ctx)
+	httpServer, err := InitServer(cfg.Port, router)
 	if err != nil {
+		logger.ErrorContext(ctx, "failed to start server", slog.String("error", err.Error()))
 		panic(err)
 	}
-	m.FilmMetrics.SeedCurrentTotal(totalFilms)
 
-	totalVotes, err := voteRepo.CurrentTotal(ctx)
-	if err != nil {
-		panic(err)
-	}
-	m.VoteMetrics.SeedTotal(totalVotes)
-
-	cronCtx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	go authService.DeleteExpiredSessionsJob(cronCtx, 5*time.Hour)
-
-	_, err = InitServer(cfg.Port, router)
-	if err != nil {
-		log.Println(err)
-		return err
-	}
-
+	logger.InfoContext(ctx, fmt.Sprintf("server listening on port %s\n", httpServer.Addr))
 	return nil
 }

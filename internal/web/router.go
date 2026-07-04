@@ -12,12 +12,11 @@ import (
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
-func InitRouter(
+func NewRouter(
 	logger *slog.Logger,
-	metrics *metrics.Metrics,
+	HTTPMetrics *metrics.HttpMetrics,
 	authService *auth.Service,
 	authHandler *auth.Handler,
 	filmHandler *film.Handler,
@@ -26,16 +25,14 @@ func InitRouter(
 	adminHandler *admin.Handler,
 ) *chi.Mux {
 	router := chi.NewRouter()
-	router.Use(middleware.Recoverer(logger))
 	router.Use(middleware.RequestID)
 	router.Use(middleware.ResponseLogger(logger))
-	router.Use(metrics.HttpMetrics.MetricsMiddleware)
+	router.Use(HTTPMetrics.MetricsMiddleware)
+	router.Use(middleware.Recoverer(logger))
 
 	router.Get("/", func(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/ui", http.StatusFound)
 	})
-
-	router.Handle("/metrics", promhttp.HandlerFor(metrics.Registry, promhttp.HandlerOpts{}))
 
 	router.Route("/auth", func(r chi.Router) {
 		r.Get("/login", authHandler.LoginHandler)

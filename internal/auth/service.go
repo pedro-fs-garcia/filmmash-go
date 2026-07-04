@@ -38,12 +38,13 @@ func NewService(
 	logger *slog.Logger,
 	provider *Zitadel,
 	repo *repository,
+	txm *database.TxManager,
 ) *Service {
 	return &Service{
 		logger:     logger.With("component", "Service"),
 		provider:   provider,
 		repository: repo,
-		txManager:  database.NewTxManager(repo.pool),
+		txManager:  txm,
 	}
 }
 
@@ -148,7 +149,7 @@ func (s *Service) DeleteExpiredSessionsJob(ctx context.Context, duration time.Du
 		case <-ticker.C:
 			total, err := s.repository.DeleteExpiredSessions(ctx)
 			if err != nil {
-				log.ErrorContext(ctx, "deleting expired sessions")
+				log.ErrorContext(ctx, "deleting expired sessions", "error", err)
 			} else {
 				log.Info(fmt.Sprintf("deleted %d expired sessions", total))
 			}

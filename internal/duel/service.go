@@ -7,7 +7,6 @@ import (
 	"filmmash/internal/metrics"
 
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type Service struct {
@@ -17,13 +16,11 @@ type Service struct {
 	filmService *film.Service
 }
 
-func NewService(metrics *metrics.DuelMetrics, pool *pgxpool.Pool, filmService *film.Service) *Service {
-	repo := NewRepository(pool)
-	txManager := database.NewTxManager(pool)
+func NewService(metrics *metrics.DuelMetrics, repo *repository, txm *database.TxManager, filmService *film.Service) *Service {
 	return &Service{
 		metrics:     metrics,
 		repo:        repo,
-		txManager:   txManager,
+		txManager:   txm,
 		filmService: filmService,
 	}
 }

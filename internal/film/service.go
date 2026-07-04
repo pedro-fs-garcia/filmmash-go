@@ -3,8 +3,6 @@ package film
 import (
 	"context"
 	"filmmash/internal/database"
-
-	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type Service struct {
@@ -12,10 +10,10 @@ type Service struct {
 	txManager *database.TxManager
 }
 
-func NewService(pool *pgxpool.Pool) *Service {
+func NewService(repo *repository, txManager *database.TxManager) *Service {
 	return &Service{
-		repo:      NewRepository(pool),
-		txManager: database.NewTxManager(pool),
+		repo:      repo,
+		txManager: txManager,
 	}
 }
 

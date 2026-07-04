@@ -21,11 +21,11 @@ type RegisterVoteUC struct {
 	duelService *duel.Service
 }
 
-func NewRegisterVoteUC(metrics *metrics.VoteMetrics, repo *repository, filmService *film.Service, duelService *duel.Service) *RegisterVoteUC {
+func NewRegisterVoteUC(metrics *metrics.VoteMetrics, repo *repository, txm *database.TxManager, filmService *film.Service, duelService *duel.Service) *RegisterVoteUC {
 	return &RegisterVoteUC{
 		metrics:     metrics,
 		voteRepo:    repo,
-		txManager:   database.NewTxManager(repo.pool),
+		txManager:   txm,
 		filmService: filmService,
 		duelService: duelService,
 	}
