@@ -1,7 +1,7 @@
 package admin
 
 import (
-	"filmmash/internal/auth"
+	"filmmash/internal/zitadel"
 	"time"
 
 	"github.com/google/uuid"
@@ -21,7 +21,7 @@ type UserWithVote struct {
 
 type UserDashData struct {
 	User  UserWithVote
-	Authz *auth.UserAuthz
+	Authz *zitadel.UserAuthz
 }
 
 type PaginatedUsers struct {

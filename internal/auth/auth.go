@@ -1,7 +1,6 @@
 package auth
 
 import (
-	"filmmash/internal/zitadel"
 	"net/netip"
 	"strings"
 	"time"
@@ -32,13 +31,6 @@ type User struct {
 	ID         uuid.UUID
 	ZitadelSub string
 	CreatedAt  time.Time
-}
-
-type UserAuthz struct {
-	UserID      string
-	LoginName   string
-	DisplayName string
-	Roles       []string
 }
 
 type SessionDB struct {
@@ -84,24 +76,19 @@ type Session struct {
 }
 
 type UserInfo struct {
-	Sub               string               `json:"sub"`
-	Email             string               `json:"email"`
-	Name              string               `json:"name"`
-	EmailVerified     bool                 `json:"email_verified"`
-	FamilyName        string               `json:"family_name"`
-	GivenName         string               `json:"given_name"`
-	Locale            string               `json:"locale"`
-	PreferredUsername string               `json:"preferred_username"`
-	UpdatedAt         int64                `json:"updated_at"`
-	Roles             zitadel.ZitadelRoles `json:"urn:zitadel:iam:org:project:roles"`
-}
+	Sub               string `json:"sub"`
+	Email             string `json:"email"`
+	Name              string `json:"name"`
+	EmailVerified     bool   `json:"email_verified"`
+	FamilyName        string `json:"family_name"`
+	GivenName         string `json:"given_name"`
+	Locale            string `json:"locale"`
+	PreferredUsername string `json:"preferred_username"`
+	UpdatedAt         int64  `json:"updated_at"`
 
-func (u UserInfo) RoleKeys() []string {
-	roleKeys := make([]string, 0, len(u.Roles))
-	for role := range u.Roles {
-		roleKeys = append(roleKeys, role)
-	}
-	return roleKeys
+	// Roles is not a standard OIDC claim; it is populated by the
+	// provider's pluggable RoleMapper rather than decoded directly.
+	Roles []string `json:"-"`
 }
 
 func SessionToSessionDB(session Session, tokenHash []byte) SessionDB {

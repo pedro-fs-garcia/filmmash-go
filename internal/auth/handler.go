@@ -8,19 +8,43 @@ import (
 	"strings"
 )
 
+type HandlerConfig struct {
+	defaultReturnToPath string
+	postLogoutPath      string
+	accountConsoleURL   string
+}
+
+func NewHandlerConfig(
+	defaultReturntoPath, postLogoutPath, accountConsoleURL string,
+) *HandlerConfig {
+	return &HandlerConfig{
+		defaultReturnToPath: defaultReturntoPath,
+		postLogoutPath:      postLogoutPath,
+		accountConsoleURL:   accountConsoleURL,
+	}
+}
+
 type Handler struct {
 	logger        *slog.Logger
 	service       *Service
 	idp           *Provider
 	oidcFlowCodec *OIDCFlowCodec
+	cfg           *HandlerConfig
 }
 
-func NewHandler(logger *slog.Logger, authService *Service, idp *Provider, oidcFlowCodec *OIDCFlowCodec) *Handler {
+func NewHandler(
+	logger *slog.Logger,
+	authService *Service,
+	idp *Provider,
+	oidcFlowCodec *OIDCFlowCodec,
+	cfg *HandlerConfig,
+) *Handler {
 	return &Handler{
 		logger:        logger,
 		service:       authService,
 		idp:           idp,
 		oidcFlowCodec: oidcFlowCodec,
+		cfg:           cfg,
 	}
 }
 
@@ -76,7 +100,7 @@ func (h *Handler) LogoutHandler(w http.ResponseWriter, r *http.Request) {
 	cookie, err := r.Cookie("session")
 	if err != nil {
 		log.DebugContext(ctx, "Failed to extract session cookie", slog.String("error", err.Error()))
-		http.Redirect(w, r, "/ui/films", http.StatusFound)
+		http.Redirect(w, r, h.cfg.postLogoutPath, http.StatusFound)
 		http.Error(w, "Failed to verify session cookie", http.StatusBadRequest)
 		return
 	}
@@ -156,7 +180,7 @@ func (h *Handler) CallbackHandler(w http.ResponseWriter, r *http.Request) {
 	var returnTo string
 	returnToCookie, err := r.Cookie("return_to")
 	if err != nil {
-		returnTo = "/ui"
+		returnTo = h.cfg.defaultReturnToPath
 	} else {
 		returnTo = returnToCookie.Value
 	}
@@ -169,5 +193,5 @@ func (h *Handler) CallbackHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) UserConsoleHandler(w http.ResponseWriter, r *http.Request) {
-	http.Redirect(w, r, h.idp.issuer+"/ui/console/users/me", http.StatusFound)
+	http.Redirect(w, r, h.cfg.accountConsoleURL, http.StatusFound)
 }

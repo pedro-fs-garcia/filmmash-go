@@ -55,7 +55,7 @@ func NewRouter(
 
 	router.Route("/admin", func(r chi.Router) {
 		r.Use(authService.SessionCtx)
-		r.Use(auth.RequiresAdmin)
+		r.Use(auth.RequiresRole("admin"))
 		r.Get("/", adminHandler.ListUsersPaginatedHandler)
 		r.Get("/users", adminHandler.ListUsersPaginatedHandler)
 	})

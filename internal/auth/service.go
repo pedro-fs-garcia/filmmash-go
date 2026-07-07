@@ -65,7 +65,7 @@ func (s *Service) InitSession(ctx context.Context, tokens *AuthTokens) (Session,
 		}
 		displayName = userInfo.Name
 
-		scopes := "openid profile email offline_access"
+		scopes := s.idp.OauthScopes()
 		sessionDB = SessionDB{
 			TokenHash:            tokenHash,
 			UserID:               user.ID,
@@ -74,7 +74,7 @@ func (s *Service) InitSession(ctx context.Context, tokens *AuthTokens) (Session,
 			RefreshToken:         []byte(tokens.Token.RefreshToken),
 			IDToken:              []byte(tokens.RawIDToken),
 			Scopes:               &scopes,
-			Roles:                userInfo.RoleKeys(),
+			Roles:                userInfo.Roles,
 			ExpiresAt:            time.Now().Add(time.Duration(360000) * time.Second),
 		}
 

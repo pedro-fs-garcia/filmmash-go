@@ -3,17 +3,24 @@ package admin
 import (
 	"context"
 	"filmmash/internal/auth"
+	"filmmash/internal/zitadel"
 )
 
-type Service struct {
-	repo *repository
-	idp  *auth.Provider
+type AuthzFetcher interface {
+	FetchAuthorizations(ctx context.Context, subs []string) (map[string]*zitadel.UserAuthz, error)
 }
 
-func NewService(repo *repository, provider *auth.Provider) *Service {
+type Service struct {
+	repo    *repository
+	idp     *auth.Provider
+	fetcher AuthzFetcher
+}
+
+func NewService(repo *repository, provider *auth.Provider, fetcher AuthzFetcher) *Service {
 	return &Service{
-		repo: repo,
-		idp:  provider,
+		repo:    repo,
+		idp:     provider,
+		fetcher: fetcher,
 	}
 }
 
@@ -23,13 +30,13 @@ func (s *Service) GetUsersPaginated(ctx context.Context, pars PaginationParamete
 		return PaginatedUsers{}, err
 	}
 
-	authz := map[string]*auth.UserAuthz{}
+	authz := map[string]*zitadel.UserAuthz{}
 	if s.idp != nil && len(users) > 0 {
 		subs := make([]string, 0, len(users))
 		for _, u := range users {
 			subs = append(subs, u.ZitadelSub)
 		}
-		authz, err = s.idp.FetchAuthorizations(ctx, subs)
+		authz, err = s.fetcher.FetchAuthorizations(ctx, subs)
 		if err != nil {
 			return PaginatedUsers{}, err
 		}
