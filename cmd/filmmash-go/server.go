@@ -72,19 +72,29 @@ func initRouter(
 		cfg.ZitadelM2MClientId,
 		cfg.ZitadelM2MClientSecret,
 	)
-	authProvider := auth.NewZitadelProvider(
+	idp, err := auth.NewProvider(ctx,
+		zClient,
+		cfg.ZitadelBaseURL,
 		cfg.ZitadelClientId,
 		cfg.ZitadelClientSecret,
-		cfg.ZitadelBaseURL,
+		cfg.AppBaseURL+"/auth/callback",
 		cfg.AppBaseURL,
-		zClient,
 	)
+	if err != nil {
+		return nil, err
+	}
+
+	oidcFlowCodec, err := auth.NewOIDCFlowCodec(cfg.AESKey)
+	if err != nil {
+		return nil, err
+	}
+
 	authRepo := auth.NewRepository(pool)
-	authService := auth.NewService(logger, authProvider, authRepo, txm)
-	authHandler := auth.NewHandler(logger, authProvider, authService)
+	authService := auth.NewService(logger, idp, authRepo, txm)
+	authHandler := auth.NewHandler(logger, authService, idp, oidcFlowCodec)
 
 	adminRepo := admin.NewRepository(pool)
-	adminService := admin.NewService(adminRepo, authProvider)
+	adminService := admin.NewService(adminRepo, idp)
 	adminHandler := admin.NewHandler(logger, adminService)
 
 	router := web.NewRouter(

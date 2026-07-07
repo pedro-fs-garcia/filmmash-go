@@ -26,58 +26,53 @@ func Sha256Hash(raw string) []byte {
 
 type Service struct {
 	logger     *slog.Logger
-	provider   *Zitadel
+	idp        *Provider
 	repository *repository
 	txManager  *database.TxManager
 }
 
 func NewService(
 	logger *slog.Logger,
-	provider *Zitadel,
+	idp *Provider,
 	repo *repository,
 	txm *database.TxManager,
 ) *Service {
 	return &Service{
 		logger:     logger.With("component", "Service"),
-		provider:   provider,
+		idp:        idp,
 		repository: repo,
 		txManager:  txm,
 	}
 }
 
-func (s *Service) InitSession(ctx context.Context, tokenResponse TokenResponse) (Session, SessionToken, string, error) {
+func (s *Service) InitSession(ctx context.Context, tokens *AuthTokens) (Session, SessionToken, string, error) {
 	rawToken := randString()
 	tokenHash := Sha256Hash(rawToken)
-
-	idToken, err := s.provider.VerifyIdToken(ctx, tokenResponse.IDToken)
-	if err != nil {
-		return Session{}, "", "", err
-	}
 
 	var sessionDB SessionDB
 	var displayName string
 
-	err = s.txManager.ExecTx(ctx, func(txCtx context.Context) error {
-		user := User{ZitadelSub: idToken.Subject}
+	err := s.txManager.ExecTx(ctx, func(txCtx context.Context) error {
+		user := User{ZitadelSub: tokens.IDToken.Subject}
 		err := s.repository.UpsertUser(txCtx, &user)
 		if err != nil {
 			return err
 		}
 
-		userInfo, err := s.provider.GetUserInfo(ctx, tokenResponse.AccessToken)
+		userInfo, err := s.idp.GetUserInfo(ctx, tokens.Token.AccessToken)
 		if err != nil {
 			return err
 		}
 		displayName = userInfo.Name
 
 		scopes := "openid profile email offline_access"
-		accessTokenExpiresAt := time.Now().Add(time.Duration(tokenResponse.ExpiresIn) * time.Second)
 		sessionDB = SessionDB{
 			TokenHash:            tokenHash,
 			UserID:               user.ID,
-			AccessToken:          []byte(tokenResponse.AccessToken),
-			AccessTokenExpiresAt: &accessTokenExpiresAt,
-			IDToken:              []byte(tokenResponse.IDToken),
+			AccessToken:          []byte(tokens.Token.AccessToken),
+			AccessTokenExpiresAt: &tokens.Token.Expiry,
+			RefreshToken:         []byte(tokens.Token.RefreshToken),
+			IDToken:              []byte(tokens.RawIDToken),
 			Scopes:               &scopes,
 			Roles:                userInfo.RoleKeys(),
 			ExpiresAt:            time.Now().Add(time.Duration(360000) * time.Second),

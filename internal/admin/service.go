@@ -6,14 +6,14 @@ import (
 )
 
 type Service struct {
-	repo    *repository
-	zitadel *auth.Zitadel
+	repo *repository
+	idp  *auth.Provider
 }
 
-func NewService(repo *repository, provider *auth.Zitadel) *Service {
+func NewService(repo *repository, provider *auth.Provider) *Service {
 	return &Service{
-		repo:    repo,
-		zitadel: provider,
+		repo: repo,
+		idp:  provider,
 	}
 }
 
@@ -24,12 +24,12 @@ func (s *Service) GetUsersPaginated(ctx context.Context, pars PaginationParamete
 	}
 
 	authz := map[string]*auth.UserAuthz{}
-	if s.zitadel != nil && len(users) > 0 {
+	if s.idp != nil && len(users) > 0 {
 		subs := make([]string, 0, len(users))
 		for _, u := range users {
 			subs = append(subs, u.ZitadelSub)
 		}
-		authz, err = s.zitadel.FetchAuthorizations(ctx, subs)
+		authz, err = s.idp.FetchAuthorizations(ctx, subs)
 		if err != nil {
 			return PaginatedUsers{}, err
 		}

@@ -1,8 +1,6 @@
 package auth
 
 import (
-	"crypto/sha256"
-	"encoding/base64"
 	"filmmash/internal/middleware"
 	"fmt"
 	"log/slog"
@@ -11,16 +9,18 @@ import (
 )
 
 type Handler struct {
-	logger   *slog.Logger
-	service  *Service
-	provider *Zitadel
+	logger        *slog.Logger
+	service       *Service
+	idp           *Provider
+	oidcFlowCodec *OIDCFlowCodec
 }
 
-func NewHandler(logger *slog.Logger, provider *Zitadel, authService *Service) *Handler {
+func NewHandler(logger *slog.Logger, authService *Service, idp *Provider, oidcFlowCodec *OIDCFlowCodec) *Handler {
 	return &Handler{
-		logger:   logger,
-		service:  authService,
-		provider: provider,
+		logger:        logger,
+		service:       authService,
+		idp:           idp,
+		oidcFlowCodec: oidcFlowCodec,
 	}
 }
 
@@ -36,13 +36,13 @@ func (h *Handler) LoginHandler(w http.ResponseWriter, r *http.Request) {
 	if returnTo == "" {
 		returnTo = "/"
 	}
+	if !strings.HasPrefix(returnTo, "/") || strings.HasPrefix(returnTo, "//") {
+		log.WarnContext(ctx, "invalid next parameter", slog.String("next", returnTo))
+		http.Error(w, "invalid next parameter", http.StatusBadRequest)
+		return
+	}
 
-	state := randString()
-	verifier := randString()
-	sum := sha256.Sum256([]byte(verifier))
-	codeChallenge := base64.RawURLEncoding.EncodeToString(sum[:])
-
-	authorizeUrl, err := h.provider.AuthorizeURL(state, codeChallenge)
+	lc, err := h.idp.NewLoginChallenge()
 	if err != nil {
 		log.ErrorContext(ctx,
 			"Failed to assemble auth provider authorize URL",
@@ -52,9 +52,17 @@ func (h *Handler) LoginHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	SetOIDCFlowCookie(w, state, verifier)
+	err = h.oidcFlowCodec.SetCookie(w, lc.State, lc.Nonce, lc.Verifier)
+	if err != nil {
+		log.ErrorContext(ctx,
+			"Failed to set auth flow cookie",
+			slog.String("error", err.Error()),
+		)
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		return
+	}
 	SetReturnToCookie(w, returnTo)
-	http.Redirect(w, r, authorizeUrl.String(), http.StatusFound)
+	http.Redirect(w, r, lc.AuthorizeURL, http.StatusFound)
 }
 
 func (h *Handler) LogoutHandler(w http.ResponseWriter, r *http.Request) {
@@ -84,7 +92,7 @@ func (h *Handler) LogoutHandler(w http.ResponseWriter, r *http.Request) {
 
 	log.DebugContext(ctx, "check if idToken exists", slog.String("id_token", idToken))
 
-	u, err := h.provider.EndSessionURL(idToken)
+	u, err := h.idp.EndSessionURL(idToken)
 	if err != nil {
 		log.ErrorContext(ctx,
 			"Failed to parse auth provider base url into URL",
@@ -106,34 +114,16 @@ func (h *Handler) CallbackHandler(w http.ResponseWriter, r *http.Request) {
 		slog.String("request_id", reqId),
 	)
 
-	code := r.FormValue("code")
-	state := r.FormValue("state")
+	code := r.URL.Query().Get("code")
+	state := r.URL.Query().Get("state")
 
-	cookie, err := r.Cookie("oidc_flow")
+	cookieState, cookieNonce, cookieVerifier, err := h.oidcFlowCodec.ReadCookie(r)
 	if err != nil {
-		if err == http.ErrNoCookie {
-			log.WarnContext(ctx,
-				"No iodc_flow cookie found in request",
-				slog.String("error", err.Error()),
-			)
-			http.Error(w, "Failed to verify authentication cookie", http.StatusUnauthorized)
-			return
-		}
 		log.WarnContext(ctx,
-			"Failed to read iodc_flow cookie in request",
+			fmt.Sprintf("Failed to read %s cookie in request", cookieName),
 			slog.String("error", err.Error()),
 		)
-		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
-		return
-	}
-
-	cookieState, cookieVerifier, ok := strings.Cut(cookie.Value, ":")
-	if !ok {
-		log.ErrorContext(ctx,
-			"malformed cookie: could not parse iodc_flow cookie value",
-			slog.String("error", "malformed iodc_flow cookie"),
-		)
-		http.Error(w, "failed to parse cookie value", http.StatusInternalServerError)
+		http.Error(w, "No auth cookie was found in request", http.StatusBadRequest)
 		return
 	}
 
@@ -142,11 +132,11 @@ func (h *Handler) CallbackHandler(w http.ResponseWriter, r *http.Request) {
 			fmt.Sprintf("expected state %s from iodc_flow cookie. Got %s.", state, cookieState),
 			slog.String("error", "state extracted from cookie does not correpond to state received by auth provider"),
 		)
-		http.Error(w, "failed to parse cookie value", http.StatusInternalServerError)
+		http.Error(w, "state mismatch for login flow", http.StatusBadRequest)
 		return
 	}
 
-	tokenResp, err := h.provider.RequestToken(code, cookieVerifier)
+	authTokens, err := h.idp.RequestToken(ctx, code, cookieVerifier, cookieNonce)
 	if err != nil {
 		log.ErrorContext(ctx,
 			"Failed when requesting token from auth provider",
@@ -156,25 +146,28 @@ func (h *Handler) CallbackHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	session, rawToken, displayName, err := h.service.InitSession(ctx, tokenResp)
+	session, rawToken, displayName, err := h.service.InitSession(ctx, authTokens)
 	if err != nil {
 		log.ErrorContext(ctx, "Failed to init session", slog.String("error", err.Error()))
 		http.Error(w, "failed to init session", http.StatusInternalServerError)
+		return
 	}
 
-	var returnTo = "/ui"
-	returnToCookie, _ := r.Cookie("return_to")
-	if returnToCookie.Value != "" {
+	var returnTo string
+	returnToCookie, err := r.Cookie("return_to")
+	if err != nil {
+		returnTo = "/ui"
+	} else {
 		returnTo = returnToCookie.Value
 	}
 
 	SetSessionCookie(w, session, rawToken)
 	SetUserNameCookie(w, displayName, session.AccessTokenExpiresAt)
-	DropOIDCFlowCookie(w)
+	ClearOIDCFlowCookie(w)
 	DropReturnToCookie(w)
 	http.Redirect(w, r, returnTo, http.StatusFound)
 }
 
 func (h *Handler) UserConsoleHandler(w http.ResponseWriter, r *http.Request) {
-	http.Redirect(w, r, h.provider.providerUrl+"/ui/console/users/me", http.StatusFound)
+	http.Redirect(w, r, h.idp.issuer+"/ui/console/users/me", http.StatusFound)
 }

@@ -30,29 +30,6 @@ func DropReturnToCookie(w http.ResponseWriter) {
 	})
 }
 
-func SetOIDCFlowCookie(w http.ResponseWriter, state, verifier string) {
-	http.SetCookie(w, &http.Cookie{
-		Name:     "oidc_flow",
-		Value:    state + ":" + verifier,
-		Path:     "/",
-		HttpOnly: true,
-		Secure:   true,
-		MaxAge:   300,
-		SameSite: http.SameSiteLaxMode,
-	})
-}
-
-func DropOIDCFlowCookie(w http.ResponseWriter) {
-	http.SetCookie(w, &http.Cookie{
-		Name:     "oidc_flow",
-		Value:    "",
-		Path:     "/",
-		MaxAge:   -1, // <0 writes "Max-Age: 0" → delete now
-		HttpOnly: true,
-		Secure:   true,
-	})
-}
-
 func SetSessionCookie(w http.ResponseWriter, session Session, rawToken SessionToken) {
 	http.SetCookie(w, &http.Cookie{
 		Name:     "session",

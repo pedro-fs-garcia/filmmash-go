@@ -24,6 +24,8 @@ type Config struct {
 	ZitadelM2MClientSecret string `env:"ZITADEL_M2M_CLIENT_SECRET"`
 
 	AppBaseURL string `env:"APP_BASE_URL" envDefault:"http://localhost:8080"`
+
+	AESKey []byte
 }
 
 func loadDotenvFile() {
@@ -36,6 +38,10 @@ func loadDotenvFile() {
 func Load() *Config {
 	loadDotenvFile()
 	cfg, err := env.ParseAs[Config]()
+	if err != nil {
+		panic(err)
+	}
+	cfg.AESKey, err = loadAESKey()
 	if err != nil {
 		panic(err)
 	}

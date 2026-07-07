@@ -1,16 +1,16 @@
 package auth
 
 import (
-	"net/http"
+	"filmmash/internal/zitadel"
 	"net/netip"
 	"strings"
 	"time"
 
+	"github.com/coreos/go-oidc/v3/oidc"
 	"github.com/google/uuid"
+	"golang.org/x/oauth2"
 )
 
-type SessionCookie = http.Cookie
-type OIDCFlowCookie = http.Cookie
 type SessionToken = string
 
 type SessionEventType string
@@ -22,12 +22,10 @@ const (
 	EventRevoked   SessionEventType = "revoked"
 )
 
-type TokenResponse struct {
-	AccessToken  string `json:"access_token"`
-	TokenType    string `json:"token_type"`
-	ExpiresIn    int    `json:"expires_in"`
-	RefreshToken string `json:"refresh_token"`
-	IDToken      string `json:"id_token"`
+type AuthTokens struct {
+	Token      *oauth2.Token
+	IDToken    *oidc.IDToken
+	RawIDToken string
 }
 
 type User struct {
@@ -86,16 +84,16 @@ type Session struct {
 }
 
 type UserInfo struct {
-	Sub               string       `json:"sub"`
-	Email             string       `json:"email"`
-	Name              string       `json:"name"`
-	EmailVerified     bool         `json:"email_verified"`
-	FamilyName        string       `json:"family_name"`
-	GivenName         string       `json:"given_name"`
-	Locale            string       `json:"locale"`
-	PreferredUsername string       `json:"preferred_username"`
-	UpdatedAt         int64        `json:"updated_at"`
-	Roles             ZitadelRoles `json:"urn:zitadel:iam:org:project:roles"`
+	Sub               string               `json:"sub"`
+	Email             string               `json:"email"`
+	Name              string               `json:"name"`
+	EmailVerified     bool                 `json:"email_verified"`
+	FamilyName        string               `json:"family_name"`
+	GivenName         string               `json:"given_name"`
+	Locale            string               `json:"locale"`
+	PreferredUsername string               `json:"preferred_username"`
+	UpdatedAt         int64                `json:"updated_at"`
+	Roles             zitadel.ZitadelRoles `json:"urn:zitadel:iam:org:project:roles"`
 }
 
 func (u UserInfo) RoleKeys() []string {
