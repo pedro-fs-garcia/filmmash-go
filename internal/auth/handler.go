@@ -6,6 +6,8 @@ import (
 	"log/slog"
 	"net/http"
 	"strings"
+
+	chimiddleware "github.com/go-chi/chi/v5/middleware"
 )
 
 type HandlerConfig struct {
@@ -114,8 +116,6 @@ func (h *Handler) LogoutHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	log.DebugContext(ctx, "check if idToken exists", slog.String("id_token", idToken))
-
 	u, err := h.idp.EndSessionURL(idToken)
 	if err != nil {
 		log.ErrorContext(ctx,
@@ -170,7 +170,8 @@ func (h *Handler) CallbackHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	session, rawToken, displayName, err := h.service.InitSession(ctx, authTokens)
+	ip := chimiddleware.GetClientIPAddr(ctx)
+	session, rawToken, displayName, err := h.service.InitSession(ctx, authTokens, ip, r.UserAgent())
 	if err != nil {
 		log.ErrorContext(ctx, "Failed to init session", slog.String("error", err.Error()))
 		http.Error(w, "failed to init session", http.StatusInternalServerError)

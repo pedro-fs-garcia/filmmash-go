@@ -12,6 +12,7 @@ import (
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
+	chimiddleware "github.com/go-chi/chi/v5/middleware"
 )
 
 func NewRouter(
@@ -25,6 +26,7 @@ func NewRouter(
 	adminHandler *admin.Handler,
 ) *chi.Mux {
 	router := chi.NewRouter()
+	router.Use(chimiddleware.ClientIPFromHeader("X-Real-IP"))
 	router.Use(middleware.RequestID)
 	router.Use(middleware.ResponseLogger(logger))
 	router.Use(HTTPMetrics.MetricsMiddleware)

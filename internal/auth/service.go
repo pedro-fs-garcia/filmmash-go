@@ -8,8 +8,11 @@ import (
 	"filmmash/internal/database"
 	"fmt"
 	"log/slog"
+	"net/netip"
 	"time"
 )
+
+const maxUserAgentLen = 512
 
 func randString() string {
 	b := make([]byte, 32)
@@ -45,9 +48,22 @@ func NewService(
 	}
 }
 
-func (s *Service) InitSession(ctx context.Context, tokens *AuthTokens) (Session, SessionToken, string, error) {
+func (s *Service) InitSession(
+	ctx context.Context,
+	tokens *AuthTokens,
+	ip netip.Addr,
+	userAgent string,
+) (Session, SessionToken, string, error) {
 	rawToken := randString()
 	tokenHash := Sha256Hash(rawToken)
+
+	if len(userAgent) > maxUserAgentLen {
+		userAgent = userAgent[:maxUserAgentLen]
+	}
+	var userAgentPtr *string
+	if userAgent != "" {
+		userAgentPtr = &userAgent
+	}
 
 	var sessionDB SessionDB
 	var displayName string
@@ -74,6 +90,8 @@ func (s *Service) InitSession(ctx context.Context, tokens *AuthTokens) (Session,
 			RefreshToken:         []byte(tokens.Token.RefreshToken),
 			IDToken:              []byte(tokens.RawIDToken),
 			Scopes:               &scopes,
+			IPAddress:            ip,
+			UserAgent:            userAgentPtr,
 			Roles:                userInfo.Roles,
 			ExpiresAt:            time.Now().Add(time.Duration(360000) * time.Second),
 		}
