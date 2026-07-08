@@ -1,0 +1,79 @@
+discovery.docker "containers" {
+	host             = "unix:///var/run/docker.sock"
+	refresh_interval = "5s"
+}
+
+discovery.relabel "containers" {
+	targets = []
+
+	rule {
+		source_labels = ["__meta_docker_container_name"]
+		regex         = "/(.*)"
+		target_label  = "container"
+	}
+
+	rule {
+		source_labels = ["__meta_docker_container_label_com_docker_compose_service"]
+		target_label  = "service"
+	}
+
+	rule {
+		source_labels = ["__meta_docker_container_log_stream"]
+		target_label  = "stream"
+	}
+}
+
+loki.source.docker "containers" {
+	host          = "unix:///var/run/docker.sock"
+	targets       = discovery.docker.containers.targets
+	relabel_rules = discovery.relabel.containers.rules
+	forward_to    = [loki.process.pipeline.receiver]
+}
+
+loki.process "pipeline" {
+	forward_to = [loki.write.local.receiver]
+
+	// Only parse JSON for the app; Postgres and plaintext lines are left untouched.
+	stage.match {
+		selector = "{service=\"app\"}"
+
+		stage.json {
+			expressions = {
+				level      = "level",
+				method     = "method",
+				msg        = "msg",
+				time       = "time",
+				request_id = "request_id",
+				duel_id    = "duel_id",
+			}
+		}
+
+		// Low-cardinality fields only -> labels.
+		stage.labels {
+			values = {
+				level  = "",
+				method = "",
+			}
+		}
+
+		// High-cardinality identifiers -> structured metadata (queryable, no new streams).
+		stage.structured_metadata {
+			values = {
+				request_id = "",
+				duel_id    = "",
+			}
+		}
+
+		// Use the application's own timestamp rather than ingest time.
+		stage.timestamp {
+			source = "time"
+			format = "RFC3339Nano"
+		}
+	}
+}
+
+loki.write "local" {
+	endpoint {
+		url = "http://loki:9080/loki/api/v1/push"
+	}
+}
