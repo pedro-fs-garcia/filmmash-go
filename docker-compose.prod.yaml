@@ -1,0 +1,9 @@
+# Production overrides for the VPS.
+# Leave COMPOSE_PROFILES unset in the VPS .env so the local monitoring stack stays off; 
+# Alloy ships telemetry to Grafana Cloud instead.
+services:
+  alloy:
+    env_file:
+      - .env
+    volumes:
+      - ./monitoring/alloy/config.cloud.alloy:/etc/alloy/config.alloy:ro

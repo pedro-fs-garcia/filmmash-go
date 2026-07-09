@@ -26,45 +26,53 @@ func NewRouter(
 	adminHandler *admin.Handler,
 ) *chi.Mux {
 	router := chi.NewRouter()
-	router.Use(chimiddleware.ClientIPFromHeader("X-Real-IP"))
-	router.Use(middleware.RequestID)
-	router.Use(middleware.ResponseLogger(logger))
-	router.Use(HTTPMetrics.MetricsMiddleware)
-	router.Use(middleware.Recoverer(logger))
 
-	router.Get("/", func(w http.ResponseWriter, r *http.Request) {
-		http.Redirect(w, r, "/ui", http.StatusFound)
+	router.Get("/health", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("ok"))
 	})
 
-	router.Route("/auth", func(r chi.Router) {
-		r.Get("/login", authHandler.LoginHandler)
-		r.Get("/callback", authHandler.CallbackHandler)
-		r.Get("/logout", authHandler.LogoutHandler)
-	})
+	router.Group(func(r chi.Router) {
+		r.Use(chimiddleware.ClientIPFromHeader("X-Real-IP"))
+		r.Use(middleware.RequestID)
+		r.Use(middleware.ResponseLogger(logger))
+		r.Use(HTTPMetrics.MetricsMiddleware)
+		r.Use(middleware.Recoverer(logger))
 
-	router.Route("/ui", func(r chi.Router) {
-		r.Get("/", duelHandler.DuelHandler)
-		r.Get("/films", filmHandler.FilmsListHandler)
-		r.Get("/films/search", filmHandler.SearchFilmsHandler)
-		r.Get("/film/{id}", filmHandler.FilmHandler)
-		r.Get("/film/votes/{film_id}", voteHandler.ListFilmVotes)
-		r.Get("/my_votes", authService.SessionMiddleware(voteHandler.MyVotesHandler))
-		r.Post(
-			"/duel/{duel_id}/result",
-			authService.SessionMiddleware(voteHandler.DuelResultHandler),
-		)
-	})
+		r.Get("/", func(w http.ResponseWriter, r *http.Request) {
+			http.Redirect(w, r, "/ui", http.StatusFound)
+		})
 
-	router.Route("/admin", func(r chi.Router) {
-		r.Use(authService.SessionCtx)
-		r.Use(auth.RequiresRole("admin"))
-		r.Get("/", adminHandler.ListUsersPaginatedHandler)
-		r.Get("/users", adminHandler.ListUsersPaginatedHandler)
-	})
+		r.Route("/auth", func(r chi.Router) {
+			r.Get("/login", authHandler.LoginHandler)
+			r.Get("/callback", authHandler.CallbackHandler)
+			r.Get("/logout", authHandler.LogoutHandler)
+		})
 
-	router.Route("/user", func(r chi.Router) {
-		r.Use(authService.SessionCtx)
-		r.Get("/console", authHandler.UserConsoleHandler)
+		r.Route("/ui", func(r chi.Router) {
+			r.Get("/", duelHandler.DuelHandler)
+			r.Get("/films", filmHandler.FilmsListHandler)
+			r.Get("/films/search", filmHandler.SearchFilmsHandler)
+			r.Get("/film/{id}", filmHandler.FilmHandler)
+			r.Get("/film/votes/{film_id}", voteHandler.ListFilmVotes)
+			r.Get("/my_votes", authService.SessionMiddleware(voteHandler.MyVotesHandler))
+			r.Post(
+				"/duel/{duel_id}/result",
+				authService.SessionMiddleware(voteHandler.DuelResultHandler),
+			)
+		})
+
+		r.Route("/admin", func(r chi.Router) {
+			r.Use(authService.SessionCtx)
+			r.Use(auth.RequiresRole("admin"))
+			r.Get("/", adminHandler.ListUsersPaginatedHandler)
+			r.Get("/users", adminHandler.ListUsersPaginatedHandler)
+		})
+
+		r.Route("/user", func(r chi.Router) {
+			r.Use(authService.SessionCtx)
+			r.Get("/console", authHandler.UserConsoleHandler)
+		})
 	})
 
 	return router
