@@ -2,7 +2,7 @@
 // versions:
 //   sqlc v1.31.1
 
-package database
+package dbgen
 
 import (
 	"context"
@@ -15,6 +15,7 @@ type DBTX interface {
 	Exec(context.Context, string, ...interface{}) (pgconn.CommandTag, error)
 	Query(context.Context, string, ...interface{}) (pgx.Rows, error)
 	QueryRow(context.Context, string, ...interface{}) pgx.Row
+	SendBatch(context.Context, *pgx.Batch) pgx.BatchResults
 }
 
 func New(db DBTX) *Queries {

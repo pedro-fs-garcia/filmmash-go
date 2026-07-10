@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"filmmash/internal/database"
+	"filmmash/internal/database/dbgen"
 	"fmt"
 
 	"github.com/google/uuid"
@@ -19,17 +20,19 @@ func NewRepository(pool *pgxpool.Pool) *repository {
 	return &repository{pool: pool}
 }
 
+func (r *repository) queries(ctx context.Context) *dbgen.Queries {
+	return dbgen.New(database.ExtractTx(ctx, r.pool))
+}
+
 func (r *repository) InsertVote(ctx context.Context, vote *Vote) error {
-	query := `
-	INSERT INTO votes (duel_id, user_id, winner_id, loser_id, winner_rating_after, loser_rating_after) 
-	VALUES ($1, $2, $3, $4, $5, $6) 
-	RETURNING id
-	`
-	q := database.ExtractTx(ctx, r.pool)
-	err := q.QueryRow(ctx, query,
-		vote.DuelId, vote.UserID,
-		vote.WinnerID, vote.LoserId, vote.WinnerRatingAfter, vote.LoserRatingAfter,
-	).Scan(&vote.Id)
+	id, err := r.queries(ctx).InsertVote(ctx, dbgen.InsertVoteParams{
+		DuelID:            vote.DuelId,
+		UserID:            vote.UserID,
+		WinnerID:          int32(vote.WinnerID),
+		LoserID:           int32(vote.LoserId),
+		WinnerRatingAfter: vote.WinnerRatingAfter,
+		LoserRatingAfter:  vote.LoserRatingAfter,
+	})
 	if err != nil {
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
@@ -37,80 +40,76 @@ func (r *repository) InsertVote(ctx context.Context, vote *Vote) error {
 		}
 		return fmt.Errorf("[vote.repository.InsertVote] Failed to insert vote: %w", err)
 	}
+	vote.Id = id
 	return nil
 }
 
 func (r *repository) ListFilmVotes(ctx context.Context, filmId int) ([]MatchupResult, error) {
-	query := `
-	SELECT v.winner_id, v.loser_id, v.winner_rating_after, v.loser_rating_after, v.created_at,
-		fw.title, fw.release_year, fl.title, fl.release_year
-	FROM votes v
-	JOIN films fw ON fw.id = v.winner_id
-	JOIN films fl ON fl.id = v.loser_id
-	WHERE v.winner_id = $1 OR v.loser_id = $1
-	ORDER BY v.created_at DESC
-	`
-	q := database.ExtractTx(ctx, r.pool)
-	rows, err := q.Query(ctx, query, filmId)
+	rows, err := r.queries(ctx).ListFilmVotes(ctx, int32(filmId))
 	if err != nil {
 		return nil, database.ParseDBError("querying list of film votes", err)
 	}
 
 	var votes []MatchupResult
-	for rows.Next() {
-		var vr MatchupResult
-		err = rows.Scan(
-			&vr.Winner.Id, &vr.Loser.Id, &vr.Winner.RatingAfter, &vr.Loser.RatingAfter,
-			&vr.CreatedAt,
-			&vr.Winner.Title, &vr.Winner.Year, &vr.Loser.Title, &vr.Loser.Year,
-		)
-		votes = append(votes, vr)
-	}
-	if err = rows.Err(); err != nil {
-		return nil, database.ParseDBError("iterating rows", err)
+	for _, row := range rows {
+		votes = append(votes, MatchupResult{
+			Winner: VotedFilm{
+				Id:          int(row.WinnerID),
+				Title:       row.WinnerTitle,
+				Year:        int(row.WinnerReleaseYear),
+				RatingAfter: row.WinnerRatingAfter,
+			},
+			Loser: VotedFilm{
+				Id:          int(row.LoserID),
+				Title:       row.LoserTitle,
+				Year:        int(row.LoserReleaseYear),
+				RatingAfter: row.LoserRatingAfter,
+			},
+			CreatedAt: row.CreatedAt,
+		})
 	}
 	return votes, nil
 }
 
 func (r *repository) CurrentTotal(ctx context.Context) (int, error) {
-	query := "SELECT COUNT(*) FROM votes"
-	var n int
-	q := database.ExtractTx(ctx, r.pool)
-	err := q.QueryRow(ctx, query).Scan(&n)
+	n, err := r.queries(ctx).CountVotes(ctx)
 	if err != nil {
 		return 0, fmt.Errorf("[vote.repository.CurrentTotal] failed to count total current votes: %w", err)
 	}
-	return n, nil
+	return int(n), nil
 }
 
 func (r *repository) ListUsersVotes(ctx context.Context, userId uuid.UUID) ([]MatchupResult, error) {
-	query := `
-	SELECT v.winner_id, v.loser_id, v.winner_rating_after, v.loser_rating_after, v.created_at,
-		fw.title, fw.release_year, fw.image_path, fl.title, fl.release_year, fl.image_path
-	FROM votes v
-	JOIN films fw ON fw.id = v.winner_id
-	JOIN films fl ON fl.id = v.loser_id
-	WHERE v.user_id = $1
-	ORDER BY v.created_at DESC
-	`
-	q := database.ExtractTx(ctx, r.pool)
-	rows, err := q.Query(ctx, query, userId)
+	rows, err := r.queries(ctx).ListUserVotes(ctx, &userId)
 	if err != nil {
 		return nil, database.ParseDBError("querying list of film votes", err)
 	}
 
 	var votes []MatchupResult
-	for rows.Next() {
-		var vr MatchupResult
-		err = rows.Scan(
-			&vr.Winner.Id, &vr.Loser.Id, &vr.Winner.RatingAfter, &vr.Loser.RatingAfter,
-			&vr.CreatedAt,
-			&vr.Winner.Title, &vr.Winner.Year, &vr.Winner.ImagePath, &vr.Loser.Title, &vr.Loser.Year, &vr.Loser.ImagePath,
-		)
-		votes = append(votes, vr)
-	}
-	if err = rows.Err(); err != nil {
-		return nil, database.ParseDBError("iterating rows", err)
+	for _, row := range rows {
+		winner := VotedFilm{
+			Id:          int(row.WinnerID),
+			Title:       row.WinnerTitle,
+			Year:        int(row.WinnerReleaseYear),
+			RatingAfter: row.WinnerRatingAfter,
+		}
+		if row.WinnerImagePath != nil {
+			winner.ImagePath = *row.WinnerImagePath
+		}
+		loser := VotedFilm{
+			Id:          int(row.LoserID),
+			Title:       row.LoserTitle,
+			Year:        int(row.LoserReleaseYear),
+			RatingAfter: row.LoserRatingAfter,
+		}
+		if row.LoserImagePath != nil {
+			loser.ImagePath = *row.LoserImagePath
+		}
+		votes = append(votes, MatchupResult{
+			Winner:    winner,
+			Loser:     loser,
+			CreatedAt: row.CreatedAt,
+		})
 	}
 	return votes, nil
 }

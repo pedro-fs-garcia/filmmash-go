@@ -2,7 +2,7 @@
 // versions:
 //   sqlc v1.31.1
 
-package database
+package dbgen
 
 import (
 	"net/netip"
@@ -54,7 +54,7 @@ type Session struct {
 type SessionEvent struct {
 	ID        int64
 	SessionID uuid.UUID
-	IdpSub    string
+	PidSub    string
 	Event     string
 	IPAddress netip.Addr
 	CreatedAt time.Time
@@ -62,7 +62,7 @@ type SessionEvent struct {
 
 type User struct {
 	ID        uuid.UUID
-	IdpSub    string
+	PidSub    string
 	CreatedAt time.Time
 }
 
