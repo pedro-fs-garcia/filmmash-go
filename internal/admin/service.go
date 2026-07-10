@@ -34,7 +34,7 @@ func (s *Service) GetUsersPaginated(ctx context.Context, pars PaginationParamete
 	if s.idp != nil && len(users) > 0 {
 		subs := make([]string, 0, len(users))
 		for _, u := range users {
-			subs = append(subs, u.ZitadelSub)
+			subs = append(subs, u.PidSub)
 		}
 		authz, err = s.fetcher.FetchAuthorizations(ctx, subs)
 		if err != nil {
@@ -46,7 +46,7 @@ func (s *Service) GetUsersPaginated(ctx context.Context, pars PaginationParamete
 	for _, u := range users {
 		rows = append(rows, UserDashData{
 			User:  u,
-			Authz: authz[u.ZitadelSub],
+			Authz: authz[u.PidSub],
 		})
 	}
 	return toPaginatedUsers(pars.Size, rows), nil

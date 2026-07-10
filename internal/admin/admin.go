@@ -13,10 +13,10 @@ type PaginationParameters struct {
 }
 
 type UserWithVote struct {
-	Id         uuid.UUID
-	ZitadelSub string
-	CreatedAt  time.Time
-	Votes      int64
+	Id        uuid.UUID
+	PidSub    string
+	CreatedAt time.Time
+	Votes     int64
 }
 
 type UserDashData struct {

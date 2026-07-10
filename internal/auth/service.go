@@ -69,7 +69,7 @@ func (s *Service) InitSession(
 	var displayName string
 
 	err := s.txManager.ExecTx(ctx, func(txCtx context.Context) error {
-		user := User{ZitadelSub: tokens.IDToken.Subject}
+		user := User{PidSub: tokens.IDToken.Subject}
 		err := s.repository.UpsertUser(txCtx, &user)
 		if err != nil {
 			return err
@@ -102,10 +102,10 @@ func (s *Service) InitSession(
 		}
 
 		sessionEvent := SessionEvent{
-			SessionID:  sessionDB.ID,
-			ZitadelSub: user.ZitadelSub,
-			Event:      EventCreated,
-			IPAddress:  sessionDB.IPAddress,
+			SessionID: sessionDB.ID,
+			PidSub:    user.PidSub,
+			Event:     EventCreated,
+			IPAddress: sessionDB.IPAddress,
 		}
 		err = s.repository.InsertEvent(txCtx, &sessionEvent)
 		if err != nil {
@@ -133,9 +133,9 @@ func (s *Service) EndSession(ctx context.Context, tokenHash []byte) (string, err
 		}
 
 		sessionEvent := SessionEvent{
-			SessionID:  session.ID,
-			ZitadelSub: user.ZitadelSub,
-			Event:      EventLoggedOut,
+			SessionID: session.ID,
+			PidSub:    user.PidSub,
+			Event:     EventLoggedOut,
 		}
 		err = s.repository.DeleteByTokenHash(ctx, tokenHash)
 		if err != nil {

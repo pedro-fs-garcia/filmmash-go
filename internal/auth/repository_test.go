@@ -120,7 +120,7 @@ func TestRepository(t *testing.T) {
 	var alice auth.User
 
 	t.Run("UpsertUser", func(t *testing.T) {
-		alice = auth.User{ZitadelSub: "auth-test|alice"}
+		alice = auth.User{PidSub: "auth-test|alice"}
 		if err := repo.UpsertUser(txCtx, &alice); err != nil {
 			t.Fatalf("UpsertUser: %v", err)
 		}
@@ -133,7 +133,7 @@ func TestRepository(t *testing.T) {
 	})
 
 	t.Run("UpsertUser is idempotent on conflict", func(t *testing.T) {
-		again := auth.User{ZitadelSub: alice.ZitadelSub}
+		again := auth.User{PidSub: alice.PidSub}
 		if err := repo.UpsertUser(txCtx, &again); err != nil {
 			t.Fatalf("UpsertUser on existing sub: %v", err)
 		}
@@ -146,12 +146,12 @@ func TestRepository(t *testing.T) {
 	})
 
 	t.Run("GetUserBySub", func(t *testing.T) {
-		got, err := repo.GetUserBySub(txCtx, alice.ZitadelSub)
+		got, err := repo.GetUserBySub(txCtx, alice.PidSub)
 		if err != nil {
 			t.Fatalf("GetUserBySub: %v", err)
 		}
-		if got.ID != alice.ID || got.ZitadelSub != alice.ZitadelSub {
-			t.Errorf("GetUserBySub = %+v, want id %v sub %q", got, alice.ID, alice.ZitadelSub)
+		if got.ID != alice.ID || got.PidSub != alice.PidSub {
+			t.Errorf("GetUserBySub = %+v, want id %v sub %q", got, alice.ID, alice.PidSub)
 		}
 	})
 
@@ -170,8 +170,8 @@ func TestRepository(t *testing.T) {
 		if err != nil {
 			t.Fatalf("GetUserById: %v", err)
 		}
-		if got.ID != alice.ID || got.ZitadelSub != alice.ZitadelSub {
-			t.Errorf("GetUserById = %+v, want id %v sub %q", got, alice.ID, alice.ZitadelSub)
+		if got.ID != alice.ID || got.PidSub != alice.PidSub {
+			t.Errorf("GetUserById = %+v, want id %v sub %q", got, alice.ID, alice.PidSub)
 		}
 	})
 
@@ -277,10 +277,10 @@ func TestRepository(t *testing.T) {
 
 	t.Run("InsertEvent", func(t *testing.T) {
 		e := auth.SessionEvent{
-			SessionID:  uuid.New(),
-			ZitadelSub: alice.ZitadelSub,
-			Event:      auth.EventCreated,
-			IPAddress:  netip.MustParseAddr("203.0.113.5"),
+			SessionID: uuid.New(),
+			PidSub:    alice.PidSub,
+			Event:     auth.EventCreated,
+			IPAddress: netip.MustParseAddr("203.0.113.5"),
 		}
 		if err := repo.InsertEvent(txCtx, &e); err != nil {
 			t.Fatalf("InsertEvent: %v", err)

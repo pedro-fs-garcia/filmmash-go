@@ -43,7 +43,7 @@ CREATE TABLE duels (
 
 CREATE TABLE users (
     id UUID PRIMARY KEY DEFAULT uuidv7(),
-    zitadel_sub TEXT NOT NULL UNIQUE,
+    idp_sub TEXT NOT NULL UNIQUE,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
@@ -87,14 +87,14 @@ CREATE INDEX idx_sessions_expires_at ON sessions (expires_at);
 CREATE TABLE session_events (
     id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     session_id UUID NOT NULL,
-    zitadel_sub TEXT NOT NULL,
+    idp_sub TEXT NOT NULL,
     event TEXT NOT NULL,
     ip_address INET,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX idx_session_events_zitadel_sub ON session_events(zitadel_sub);
-CREATE INDEX idx_session_events_session_id_zitadel_sub ON session_events(session_id, zitadel_sub);
+CREATE INDEX idx_session_events_idp_sub ON session_events(idp_sub);
+CREATE INDEX idx_session_events_session_id_idp_sub ON session_events(session_id, idp_sub);
 
 -- +goose Down
 DROP TABLE session_events;

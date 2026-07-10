@@ -19,11 +19,11 @@ func NewRepository(pool *pgxpool.Pool) *repository {
 
 func (r *repository) GetUsersPaginated(ctx context.Context, pars PaginationParameters) ([]UserWithVote, error) {
 	query := `
-		SELECT u.id, u.zitadel_sub, u.created_at, COUNT(*) votes
+		SELECT u.id, u.idp_sub, u.created_at, COUNT(*) votes
 		FROM users u
 		JOIN votes v ON u.id = v.user_id
 		WHERE u.id > $1
-		GROUP BY u.id, u.zitadel_sub, u.created_at
+		GROUP BY u.id, u.idp_sub, u.created_at
 		ORDER BY u.id
 		LIMIT $2
 	`
@@ -37,7 +37,7 @@ func (r *repository) GetUsersPaginated(ctx context.Context, pars PaginationParam
 	var users []UserWithVote
 	for rows.Next() {
 		var u UserWithVote
-		err := rows.Scan(&u.Id, &u.ZitadelSub, &u.CreatedAt, &u.Votes)
+		err := rows.Scan(&u.Id, &u.PidSub, &u.CreatedAt, &u.Votes)
 		if err != nil {
 			return nil, database.ParseDBError("scanning film row", err)
 		}
