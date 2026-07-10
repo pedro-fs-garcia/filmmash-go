@@ -35,3 +35,6 @@ migrate-test-db:
 
 test:
 	go test ./...
+
+sqlc:
+	sqlc generate

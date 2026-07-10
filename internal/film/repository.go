@@ -2,7 +2,9 @@ package film
 
 import (
 	"context"
+	"errors"
 	"filmmash/internal/database"
+	"filmmash/internal/database/dbgen"
 	"fmt"
 
 	"github.com/jackc/pgx/v5"
@@ -19,194 +21,140 @@ func NewRepository(pool *pgxpool.Pool) *repository {
 	}
 }
 
+func (r *repository) queries(ctx context.Context) *dbgen.Queries {
+	return dbgen.New(database.ExtractTx(ctx, r.pool))
+}
+
+func filmFromRow(row dbgen.GetFilmRow) Film {
+	f := Film{
+		Id:     int(row.ID),
+		Title:  row.Title,
+		Year:   int(row.ReleaseYear),
+		Rating: row.Rating,
+		Director: Director{
+			Id:   int(row.DirectorID),
+			Name: row.DirectorName,
+		},
+	}
+	if row.ImagePath != nil {
+		f.ImagePath = *row.ImagePath
+	}
+	return f
+}
+
 func (r *repository) InsertFilm(ctx context.Context, f *Film) error {
-	query := `
-	WITH new_director AS (
-		INSERT INTO directors (id, name)
-		VALUES ($1, $2)
-		ON CONFLICT DO NOTHING
-		RETURNING id AS director_id
-	),
-	director AS (
-		SELECT director_id FROM new_director
-		UNION ALL
-		SELECT id AS director_id FROM directors WHERE id = $1
-	)
-	INSERT INTO films (id, title, release_year, director_id, image_path, rating)
-	SELECT $3, $4, $5, director_id, $6, $7 FROM director
-	RETURNING id;
-	`
 	if f.Rating == 0 {
 		f.Rating = StdRating
 	}
-	q := database.ExtractTx(ctx, r.pool)
-	err := q.QueryRow(ctx,
-		query,
-		f.Director.Id,
-		f.Director.Name,
-		f.Id,
-		f.Title,
-		f.Year,
-		f.ImagePath,
-		f.Rating,
-	).Scan(&f.Id)
-	return parseDBError("inserting film", err)
+	id, err := r.queries(ctx).InsertFilm(ctx, dbgen.InsertFilmParams{
+		ID:           int32(f.Id),
+		Title:        f.Title,
+		ReleaseYear:  int16(f.Year),
+		ImagePath:    &f.ImagePath,
+		Rating:       f.Rating,
+		DirectorID:   int32(f.Director.Id),
+		DirectorName: f.Director.Name,
+	})
+	if err != nil {
+		return parseDBError("inserting film", err)
+	}
+	f.Id = int(id)
+	return nil
 }
 
 func (r *repository) InsertDirector(ctx context.Context, d *Director) error {
-	query := `
-	INSERT INTO directors (id, name)
-	VALUES ($1, $2)
-	RETURNING id
-	`
-	q := database.ExtractTx(ctx, r.pool)
-	err := q.QueryRow(ctx, query, d.Id, d.Name).Scan(&d.Id)
-
-	return parseDBError(
-		fmt.Sprintf("inserting director (id: %v)", d.Id),
-		err,
-	)
+	id, err := r.queries(ctx).InsertDirector(ctx, dbgen.InsertDirectorParams{
+		ID:   int32(d.Id),
+		Name: d.Name,
+	})
+	if err != nil {
+		return parseDBError(
+			fmt.Sprintf("inserting director (id: %v)", d.Id),
+			err,
+		)
+	}
+	d.Id = int(id)
+	return nil
 }
 
 func (r *repository) GetDirector(ctx context.Context, id int) (Director, error) {
-	query := "SELECT id, name FROM directors WHERE id = $1"
-	q := database.ExtractTx(ctx, r.pool)
-	d := Director{}
-	err := q.QueryRow(ctx, query, id).Scan(&d.Id, &d.Name)
+	row, err := r.queries(ctx).GetDirector(ctx, int32(id))
 	if err != nil {
 		return Director{}, parseDBError(
 			fmt.Sprintf("getting director by id (id: %d)", id),
 			err,
 		)
 	}
-	return d, nil
+	return Director{Id: int(row.ID), Name: row.Name}, nil
 }
 
 func (r *repository) GetFilm(ctx context.Context, id int) (Film, error) {
-	query := `
-	SELECT films.id, title, release_year, image_path, rating, directors.id, directors.name
-	FROM films
-	JOIN directors ON films.director_id = directors.id
-	WHERE films.id = $1`
-
-	q := database.ExtractTx(ctx, r.pool)
-
-	var f Film
-	err := q.QueryRow(ctx, query, id).Scan(
-		&f.Id, &f.Title, &f.Year, &f.ImagePath,
-		&f.Rating, &f.Director.Id, &f.Director.Name,
-	)
+	row, err := r.queries(ctx).GetFilm(ctx, int32(id))
 	if err != nil {
 		return Film{}, parseDBError(
 			fmt.Sprintf("getting film by id (id: %d)", id),
 			err,
 		)
 	}
-	return f, nil
+	return filmFromRow(row), nil
 }
 
 func (r *repository) GetRandomFilm(ctx context.Context) (Film, error) {
-	query := `
-	SELECT films.id, title, release_year, image_path, rating, directors.id, directors.name
-	FROM films
-	JOIN directors ON films.director_id = directors.id
-	ORDER BY RANDOM() LIMIT 1`
-
-	var f Film
-	q := database.ExtractTx(ctx, r.pool)
-	err := q.QueryRow(ctx, query).Scan(&f.Id, &f.Title, &f.Year, &f.ImagePath, &f.Rating, &f.Director.Id, &f.Director.Name)
+	row, err := r.queries(ctx).GetRandomFilm(ctx)
 	if err != nil {
 		return Film{}, parseDBError(
 			"getting random film",
 			err,
 		)
 	}
-
-	return f, nil
+	return filmFromRow(dbgen.GetFilmRow(row)), nil
 }
 
 func (r *repository) GetFilmsPaginatedByRating(ctx context.Context, pars PaginationParameters) ([]Film, error) {
-	var (
-		where string
-		args  []any
-	)
-
+	params := dbgen.ListFilmsByRatingParams{
+		Limit: int32(pars.Size),
+	}
 	if pars.LastSeenId != 0 {
-		where = "WHERE (films.rating, films.id) < ($2, $3)"
-		args = []any{pars.Size, pars.LastSeenRating, pars.LastSeenId}
-	} else {
-		args = []any{pars.Size}
+		lastSeenId := int32(pars.LastSeenId)
+		lastSeenRating := pars.LastSeenRating
+		params.LastSeenID = &lastSeenId
+		params.LastSeenRating = &lastSeenRating
 	}
 
-	query := fmt.Sprintf(`
-	SELECT films.id, title, release_year, image_path, rating, directors.id, directors.name
-	FROM films
-	JOIN directors ON films.director_id = directors.id
-	%s
-	ORDER BY films.rating DESC, films.id DESC
-	LIMIT $1
-	`, where)
-
-	q := database.ExtractTx(ctx, r.pool)
-	rows, err := q.Query(ctx, query, args...)
+	rows, err := r.queries(ctx).ListFilmsByRating(ctx, params)
 	if err != nil {
 		return nil, parseDBError("querying paginated films", err)
 	}
-	defer rows.Close()
 
 	var films []Film
-	for rows.Next() {
-		var f Film
-		err = rows.Scan(&f.Id, &f.Title, &f.Year, &f.ImagePath, &f.Rating, &f.Director.Id, &f.Director.Name)
-		if err != nil {
-			return nil, parseDBError("scanning film row", err)
-		}
-		films = append(films, f)
-	}
-	if err = rows.Err(); err != nil {
-		return nil, parseDBError("iterating rows", err)
+	for _, row := range rows {
+		films = append(films, filmFromRow(dbgen.GetFilmRow(row)))
 	}
 	return films, nil
 }
 
 func (r *repository) SearchFilmByName(ctx context.Context, search string) ([]Film, error) {
-	query := `
-	SELECT films.id, title, release_year, image_path, rating, directors.id, directors.name
-	FROM films
-	JOIN directors ON films.director_id = directors.id
-	WHERE films.title ILIKE '%' || $1 || '%'
-	`
-	q := database.ExtractTx(ctx, r.pool)
-	rows, err := q.Query(ctx, query, search)
+	rows, err := r.queries(ctx).SearchFilmsByTitle(ctx, search)
 	if err != nil {
 		return nil, parseDBError("querying films by name", err)
 	}
-	defer rows.Close()
 
 	var films []Film
-	for rows.Next() {
-		var f Film
-		err = rows.Scan(&f.Id, &f.Title, &f.Year, &f.ImagePath, &f.Rating, &f.Director.Id, &f.Director.Name)
-		if err != nil {
-			return nil, parseDBError("scanning row output to film", err)
-		}
-		films = append(films, f)
-	}
-	if err = rows.Err(); err != nil {
-		return nil, parseDBError("iterating rows", err)
+	for _, row := range rows {
+		films = append(films, filmFromRow(dbgen.GetFilmRow(row)))
 	}
 	return films, nil
 }
 
 func (r *repository) UpdateRating(ctx context.Context, f *Film) error {
-	query := "UPDATE films SET rating = $1 WHERE id = $2"
-
-	q := database.ExtractTx(ctx, r.pool)
-	tag, err := q.Exec(ctx, query, f.Rating, f.Id)
+	affected, err := r.queries(ctx).UpdateFilmRating(ctx, dbgen.UpdateFilmRatingParams{
+		Rating: f.Rating,
+		ID:     int32(f.Id),
+	})
 	if err != nil {
 		return parseDBError(fmt.Sprintf("updating rating for film(id: %d)", f.Id), err)
 	}
-	if tag.RowsAffected() == 0 {
+	if affected == 0 {
 		return fmt.Errorf("film not found to update rating (id: %d): %w", f.Id, ErrNotFound)
 	}
 	return nil
@@ -217,32 +165,29 @@ func (r *repository) UpdateRatings(ctx context.Context, films []*FilmRating) err
 		return nil
 	}
 
-	query := "UPDATE films SET rating = $1 WHERE id = $2"
-
-	batch := &pgx.Batch{}
+	params := make([]dbgen.UpdateFilmRatingsParams, len(films))
 	for i := range films {
-		batch.Queue(query, films[i].Rating, films[i].Id)
-	}
-	q := database.ExtractTx(ctx, r.pool)
-	res := q.SendBatch(ctx, batch)
-	defer res.Close()
-	for range films {
-		tag, err := res.Exec()
-		if err != nil {
-			return parseDBError("updating ratings for film batch", err)
-		}
-		if tag.RowsAffected() == 0 {
-			return fmt.Errorf("no register affected on batch update: %w", ErrNotFound)
+		params[i] = dbgen.UpdateFilmRatingsParams{
+			Rating: films[i].Rating,
+			ID:     int32(films[i].Id),
 		}
 	}
-	return nil
+
+	var batchErr error
+	r.queries(ctx).UpdateFilmRatings(ctx, params).QueryRow(func(_ int, _ int32, err error) {
+		if err != nil && batchErr == nil {
+			if errors.Is(err, pgx.ErrNoRows) {
+				batchErr = fmt.Errorf("no register affected on batch update: %w", ErrNotFound)
+				return
+			}
+			batchErr = parseDBError("updating ratings for film batch", err)
+		}
+	})
+	return batchErr
 }
 
 func (r *repository) CountTotal(ctx context.Context) (int64, error) {
-	query := "SELECT COUNT(*) FROM films"
-	q := database.ExtractTx(ctx, r.pool)
-	var n int64
-	err := q.QueryRow(ctx, query).Scan(&n)
+	n, err := r.queries(ctx).CountFilms(ctx)
 	if err != nil {
 		return 0, parseDBError("counting films", err)
 	}
