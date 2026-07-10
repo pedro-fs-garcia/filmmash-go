@@ -2,7 +2,7 @@
 {{ range .Users }}
 <tr class="admin-user-row">
     <td class="admin-user-uuid">{{ .User.Id }}</td>
-    <td class="admin-user-sub">{{ .User.ZitadelSub }}</td>
+    <td class="admin-user-sub">{{ .User.PidSub }}</td>
     <td class="admin-user-authzid">{{ with .Authz }}{{ .UserID }}{{ end }}</td>
     <td class="admin-user-name">{{ with .Authz }}{{ .DisplayName }}{{ end }}</td>
     <td class="admin-user-login">{{ with .Authz }}{{ .LoginName }}{{ end }}</td>

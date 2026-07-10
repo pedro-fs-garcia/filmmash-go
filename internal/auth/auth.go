@@ -28,9 +28,9 @@ type AuthTokens struct {
 }
 
 type User struct {
-	ID         uuid.UUID
-	ZitadelSub string
-	CreatedAt  time.Time
+	ID        uuid.UUID
+	PidSub    string
+	CreatedAt time.Time
 }
 
 type SessionDB struct {
@@ -51,12 +51,12 @@ type SessionDB struct {
 }
 
 type SessionEvent struct {
-	ID         int64            `db:"id"`
-	SessionID  uuid.UUID        `db:"session_id"`
-	ZitadelSub string           `db:"zitadel_sub"`
-	Event      SessionEventType `db:"event"`
-	IPAddress  netip.Addr       `db:"ip_address"`
-	CreatedAt  time.Time        `db:"created_at"`
+	ID        int64            `db:"id"`
+	SessionID uuid.UUID        `db:"session_id"`
+	PidSub    string           `db:"idp_sub"`
+	Event     SessionEventType `db:"event"`
+	IPAddress netip.Addr       `db:"ip_address"`
+	CreatedAt time.Time        `db:"created_at"`
 }
 
 type Session struct {

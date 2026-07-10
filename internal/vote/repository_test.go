@@ -162,7 +162,7 @@ func seedUser(t *testing.T, ctx context.Context, sub string) uuid.UUID {
 	t.Helper()
 	var id uuid.UUID
 	q := database.ExtractTx(ctx, testPool)
-	err := q.QueryRow(ctx, `INSERT INTO users (zitadel_sub) VALUES ($1) RETURNING id`, sub).Scan(&id)
+	err := q.QueryRow(ctx, `INSERT INTO users (idp_sub) VALUES ($1) RETURNING id`, sub).Scan(&id)
 	if err != nil {
 		t.Fatalf("seeding user %q: %v", sub, err)
 	}
