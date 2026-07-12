@@ -17,6 +17,8 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
+const testRatingWindow int32 = 200
+
 func seedFilms(t *testing.T, ctx context.Context) (film.Film, film.Film) {
 	t.Helper()
 	filmRepo := film.NewRepository(testPool)
@@ -60,7 +62,7 @@ func TestMain(m *testing.M) {
 func TestRepository(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
-	repo := duel.NewRepository(testPool)
+	repo := duel.NewRepository(testPool, testRatingWindow)
 
 	tx, err := testPool.Begin(ctx)
 	if err != nil {
@@ -218,6 +220,64 @@ func TestRepository(t *testing.T) {
 		}
 		if d.FilmB.Id != b.Id {
 			t.Errorf("ComposeDuel FilmB = %d, want %d", d.FilmB.Id, b.Id)
+		}
+	})
+
+	t.Run("ComposeDuel picks opponents within the rating window", func(t *testing.T) {
+		itx, err := testPool.Begin(ctx)
+		if err != nil {
+			t.Fatalf("begin: %v", err)
+		}
+		defer itx.Rollback(ctx)
+		ictx := database.InjectTx(ctx, itx)
+
+		dir := film.Director{Id: 601, Name: "Window director"}
+		winner := film.Film{Id: 3101, Title: "Winner", Year: 2010, Director: dir, ImagePath: "w.jpg", Rating: 1400}
+		near := film.Film{Id: 3102, Title: "Near", Year: 2011, Director: dir, ImagePath: "n.jpg", Rating: 1400 + float64(testRatingWindow) - 50}
+		far := film.Film{Id: 3103, Title: "Far", Year: 2012, Director: dir, ImagePath: "f.jpg", Rating: 1400 + float64(testRatingWindow) + 5000}
+		filmRepo := film.NewRepository(testPool)
+		for _, f := range []*film.Film{&winner, &near, &far} {
+			if err := filmRepo.InsertFilm(ictx, f); err != nil {
+				t.Fatalf("seeding film %d: %v", f.Id, err)
+			}
+		}
+
+		for range 15 {
+			d, err := repo.ComposeDuel(ictx, winner.Id)
+			if err != nil {
+				t.Fatalf("ComposeDuel: %v", err)
+			}
+			if d.FilmB.Id != near.Id {
+				t.Fatalf("ComposeDuel picked film %d (rating %v), want only %d within window %d",
+					d.FilmB.Id, d.FilmB.Rating, near.Id, testRatingWindow)
+			}
+		}
+	})
+
+	t.Run("ComposeDuel falls back to closest films when none is within the window", func(t *testing.T) {
+		itx, err := testPool.Begin(ctx)
+		if err != nil {
+			t.Fatalf("begin: %v", err)
+		}
+		defer itx.Rollback(ctx)
+		ictx := database.InjectTx(ctx, itx)
+
+		dir := film.Director{Id: 602, Name: "Outlier director"}
+		outlier := film.Film{Id: 3201, Title: "Outlier", Year: 2010, Director: dir, ImagePath: "o.jpg", Rating: 9000}
+		other := film.Film{Id: 3202, Title: "Other", Year: 2011, Director: dir, ImagePath: "t.jpg", Rating: 1400}
+		filmRepo := film.NewRepository(testPool)
+		for _, f := range []*film.Film{&outlier, &other} {
+			if err := filmRepo.InsertFilm(ictx, f); err != nil {
+				t.Fatalf("seeding film %d: %v", f.Id, err)
+			}
+		}
+
+		d, err := repo.ComposeDuel(ictx, outlier.Id)
+		if err != nil {
+			t.Fatalf("ComposeDuel must still find an opponent for an outlier film: %v", err)
+		}
+		if d.FilmB.Id != other.Id {
+			t.Fatalf("ComposeDuel FilmB = %d, want fallback opponent %d", d.FilmB.Id, other.Id)
 		}
 	})
 

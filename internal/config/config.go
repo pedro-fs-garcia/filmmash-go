@@ -25,6 +25,8 @@ type Config struct {
 
 	AppBaseURL string `env:"APP_BASE_URL" envDefault:"http://localhost:8080"`
 
+	DuelRatingWindow int32 `env:"DUEL_RATING_WINDOW" envDefault:"350"`
+
 	AESKey []byte
 }
 
