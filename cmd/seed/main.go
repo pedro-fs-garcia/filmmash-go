@@ -33,7 +33,7 @@ func main() {
 
 	client := tmdb.NewTmdbClient("https://api.themoviedb.org/3", cfg.TmdbApitoken)
 	total := 0
-	for page := 1; page <= 3; page++ {
+	for page := 1; page <= 25; page++ {
 		fmt.Printf("Downloading movies from tmdb, page %d", page)
 		movies, err := client.GetTopRated(page)
 		if err != nil {
