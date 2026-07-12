@@ -32,18 +32,33 @@ func main() {
 	}
 
 	client := tmdb.NewTmdbClient("https://api.themoviedb.org/3", cfg.TmdbApitoken)
-	total := 0
-	for page := 1; page <= 25; page++ {
-		fmt.Printf("Downloading movies from tmdb, page %d", page)
+	totalTop := 0
+	for page := 1; page <= 3; page++ {
+		fmt.Printf("Downloading top rated movies from TMDB, page %d\n", page)
 		movies, err := client.GetTopRated(page)
 		if err != nil {
 			fmt.Println(err)
 		}
 		r := SaveMovies(ctx, pool, movies)
 		fmt.Printf("%d new registers\n", r)
-		total += r
+		totalTop += r
 	}
-	fmt.Printf("%d Total new registers\n", total)
+	fmt.Printf("%d new top rated registers\n", totalTop)
+
+	totalPopular := 0
+	for page := 1; page <= 3; page++ {
+		fmt.Printf("Downloading Popular movies from TMDB, page %d\n", page)
+		movies, err := client.GetPopulars(page)
+		if err != nil {
+			fmt.Println(err)
+		}
+		r := SaveMovies(ctx, pool, movies)
+		fmt.Printf("%d new registers\n", r)
+		totalPopular += r
+	}
+	fmt.Printf("%d new popular registers\n", totalPopular)
+
+	fmt.Printf("%d Total new registers", totalTop+totalPopular)
 }
 
 func SaveMovies(ctx context.Context, pool *pgxpool.Pool, movies []tmdb.Movie) int {
@@ -57,15 +72,16 @@ func SaveMovies(ctx context.Context, pool *pgxpool.Pool, movies []tmdb.Movie) in
 			"INSERT INTO directors (id, name) VALUES ($1, $2) ON CONFLICT DO NOTHING",
 			movie.Director.Id, movie.Director.Name,
 		)
-		// fmt.Printf("Saving director (%d, %s)", movie.Director.Id, movie.Director.Name)
 
 		year, _, _ := strings.Cut(movie.ReleaseDate, "-")
 		release_year, _ := strconv.Atoi(year)
-		batch.Queue(
-			"INSERT INTO films (id, title, release_year, director_id, image_path) VALUES ($1, $2, $3, $4, $5) ON CONFLICT DO NOTHING",
-			movie.Id, movie.Title, release_year, movie.Director.Id, movie.PosterPath,
+		query := `
+			INSERT INTO films (id, title, release_year, director_id, image_path, popularity, vote_average) 
+			VALUES ($1, $2, $3, $4, $5, $6, $7) ON CONFLICT DO NOTHING
+			`
+		batch.Queue(query,
+			movie.Id, movie.Title, release_year, movie.Director.Id, movie.PosterPath, movie.Popularity, movie.VoteAverage,
 		)
-		// fmt.Printf("Saving film (%s)", movie.Title)
 	}
 
 	result := pool.SendBatch(ctx, batch)

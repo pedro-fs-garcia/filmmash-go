@@ -8,12 +8,15 @@ type Director struct {
 }
 
 type Film struct {
-	Id        int
-	Title     string
-	Year      int
-	Director  Director
-	ImagePath string
-	Rating    float64
+	Id          int
+	Title       string
+	Year        int
+	Director    Director
+	ImagePath   string
+	Popularity  float64
+	VoteAverage float64
+	Rating      float64
+	Duelcount   int32
 }
 
 type FilmRating struct {
