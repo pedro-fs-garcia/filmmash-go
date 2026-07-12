@@ -12,6 +12,7 @@ type Movie struct {
 	ReleaseDate string  `json:"release_date"`
 	PosterPath  string  `json:"poster_path"`
 	VoteAverage float32 `json:"vote_average"`
+	Popularity  float32 `json:"popularity"`
 	Director    Director
 }
 

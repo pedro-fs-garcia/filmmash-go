@@ -10,13 +10,18 @@ CREATE TABLE films (
     release_year SMALLINT NOT NULL CHECK (release_year BETWEEN 1800 AND 2100),
     director_id INTEGER NOT NULL REFERENCES directors(id) ON DELETE RESTRICT,
     image_path TEXT,
+    popularity FLOAT NOT NULL DEFAULT 0 CHECK (popularity >= 0),
+    vote_average FLOAT NOT NULL DEFAULT 0 CHECK (vote_average >= 0),
     rating FLOAT NOT NULL DEFAULT 1400,
+    duel_count INT NOT NULL DEFAULT 0 CHECK (duel_count >= 0),
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 CREATE INDEX idx_films_director_id ON films(director_id);
 CREATE INDEX idx_films_rating_id ON films(rating, id);
+CREATE INDEX idx_films_rating ON films(rating);
+CREATE INDEX idx_films_popularity ON films(popularity);
 
 -- +goose StatementBegin
 CREATE OR REPLACE FUNCTION trigger_set_timestamp()

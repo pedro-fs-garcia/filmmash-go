@@ -24,6 +24,10 @@ func (q *Queries) CountVotes(ctx context.Context) (int64, error) {
 }
 
 const insertVote = `-- name: InsertVote :one
+WITH duel_count_inc AS (
+    UPDATE films SET duel_count = duel_count + 1
+    WHERE id IN ($3, $4)
+)
 INSERT INTO votes (duel_id, user_id, winner_id, loser_id, winner_rating_after, loser_rating_after)
 VALUES ($1, $2, $3, $4, $5, $6)
 RETURNING id

@@ -15,7 +15,7 @@ WHERE films.id IN (
 );
 
 -- name: GetDuelRatingsForUpdate :many
-SELECT id, rating
+SELECT id, rating, duel_count
 FROM films
 WHERE films.id IN (
     SELECT film_a_id FROM duels WHERE duels.id = $1
@@ -33,9 +33,28 @@ JOIN directors ON films.director_id = directors.id
 ORDER BY RANDOM() LIMIT 2;
 
 -- name: ComposeDuel :one
-WITH random_id AS (
-    SELECT films.id FROM films
+WITH winner AS (
+    SELECT rating FROM films WHERE films.id = sqlc.arg(winner_id)
+),
+in_window AS (
+    SELECT films.id FROM films, winner
     WHERE films.id <> sqlc.arg(winner_id)
+        AND films.rating BETWEEN winner.rating - sqlc.arg(rating_window)::float
+            AND winner.rating + sqlc.arg(rating_window)::float
+),
+closest AS (
+    SELECT films.id FROM films, winner
+    WHERE films.id <> sqlc.arg(winner_id)
+    ORDER BY ABS(films.rating - winner.rating) LIMIT 40
+),
+random_id AS (
+    -- Random opponent within the rating window; if none, random among the 40 closest.
+    SELECT id FROM (
+        SELECT id FROM in_window
+        UNION ALL
+        SELECT id FROM closest
+        WHERE NOT EXISTS (SELECT 1 FROM in_window)
+    ) AS candidates
     ORDER BY RANDOM() LIMIT 1
 ),
 inserted_duel AS (

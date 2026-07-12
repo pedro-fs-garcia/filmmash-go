@@ -55,7 +55,12 @@ func (uc *RegisterVoteUC) RegisterVote(ctx context.Context, duelId uuid.UUID, wi
 			return fmt.Errorf("[vote.RegisterVoteUC.RegisterVote] film(id: %v) does not belong to duel(id: %v): %w", winnerId, duelId, ErrFilmNotInDuel)
 		}
 
-		newWinnerRating, newLoserRating := film.CalculateRatings(winner.Rating, loser.Rating)
+		newWinnerRating, newLoserRating := film.CalculateRatings(
+			winner.Rating,
+			loser.Rating,
+			film.FilmKFromDuelCount(winner.DuelCount),
+			film.FilmKFromDuelCount(loser.DuelCount),
+		)
 		vote = Vote{
 			DuelId:            duelId,
 			UserID:            userId,

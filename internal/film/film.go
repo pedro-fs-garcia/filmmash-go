@@ -8,17 +8,21 @@ type Director struct {
 }
 
 type Film struct {
-	Id        int
-	Title     string
-	Year      int
-	Director  Director
-	ImagePath string
-	Rating    float64
+	Id          int
+	Title       string
+	Year        int
+	Director    Director
+	ImagePath   string
+	Popularity  float64
+	VoteAverage float64
+	Rating      float64
+	Duelcount   int32
 }
 
 type FilmRating struct {
-	Id     int
-	Rating float64
+	Id        int
+	Rating    float64
+	DuelCount int32
 }
 
 type PaginationParameters struct {
@@ -49,11 +53,17 @@ func ToPaginatedResponse(size int, films []Film) PaginatedResponse {
 
 const StdRating = 1400
 
-func CalculateRatings(winnerRating, loserRating float64) (newWinnerRating, newLoserRating float64) {
-	const K = 20
+func FilmKFromDuelCount(duelcount int32) int16 {
+	if duelcount < 20 {
+		return 40 - int16(duelcount)
+	}
+	return 20
+}
+
+func CalculateRatings(winnerRating, loserRating float64, winnerK, loserK int16) (newWinnerRating, newLoserRating float64) {
 	Ea := 1 / (1 + math.Pow(10, (loserRating-winnerRating)/400))
 	Eb := 1 / (1 + math.Pow(10, (winnerRating-loserRating)/400))
-	newWinnerRating = winnerRating + K*(1-Ea)
-	newLoserRating = loserRating + K*(0-Eb)
+	newWinnerRating = winnerRating + float64(winnerK)*(1-Ea)
+	newLoserRating = loserRating + float64(loserK)*(0-Eb)
 	return newWinnerRating, newLoserRating
 }

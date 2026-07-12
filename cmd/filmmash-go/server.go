@@ -57,7 +57,7 @@ func initRouter(
 	filmService := film.NewService(filmRepo, txm)
 	filmHandler := film.NewHandler(logger, filmService)
 
-	duelRepo := duel.NewRepository(pool)
+	duelRepo := duel.NewRepository(pool, cfg.DuelRatingWindow)
 	duelService := duel.NewService(m.DuelMetrics, duelRepo, txm, filmService)
 	duelHandler := duel.NewHandler(logger, duelService)
 

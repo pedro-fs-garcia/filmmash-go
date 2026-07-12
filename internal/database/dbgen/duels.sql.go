@@ -12,9 +12,28 @@ import (
 )
 
 const composeDuel = `-- name: ComposeDuel :one
-WITH random_id AS (
-    SELECT films.id FROM films
+WITH winner AS (
+    SELECT rating FROM films WHERE films.id = $1
+),
+in_window AS (
+    SELECT films.id FROM films, winner
     WHERE films.id <> $1
+        AND films.rating BETWEEN winner.rating - $2::float
+            AND winner.rating + $2::float
+),
+closest AS (
+    SELECT films.id FROM films, winner
+    WHERE films.id <> $1
+    ORDER BY ABS(films.rating - winner.rating) LIMIT 40
+),
+random_id AS (
+    -- Random opponent within the rating window; if none, random among the 40 closest.
+    SELECT id FROM (
+        SELECT id FROM in_window
+        UNION ALL
+        SELECT id FROM closest
+        WHERE NOT EXISTS (SELECT 1 FROM in_window)
+    ) AS candidates
     ORDER BY RANDOM() LIMIT 1
 ),
 inserted_duel AS (
@@ -34,6 +53,11 @@ JOIN films fa ON fa.id = i.film_a_id JOIN directors da ON da.id = fa.director_id
 JOIN films fb ON fb.id = i.film_b_id JOIN directors db ON db.id = fb.director_id
 `
 
+type ComposeDuelParams struct {
+	WinnerID     int32
+	RatingWindow float64
+}
+
 type ComposeDuelRow struct {
 	DuelID           uuid.UUID
 	FilmAID          int32
@@ -52,8 +76,8 @@ type ComposeDuelRow struct {
 	DirectorBName    string
 }
 
-func (q *Queries) ComposeDuel(ctx context.Context, winnerID int32) (ComposeDuelRow, error) {
-	row := q.db.QueryRow(ctx, composeDuel, winnerID)
+func (q *Queries) ComposeDuel(ctx context.Context, arg ComposeDuelParams) (ComposeDuelRow, error) {
+	row := q.db.QueryRow(ctx, composeDuel, arg.WinnerID, arg.RatingWindow)
 	var i ComposeDuelRow
 	err := row.Scan(
 		&i.DuelID,
@@ -138,7 +162,7 @@ func (q *Queries) GetDuelFilms(ctx context.Context, id uuid.UUID) ([]GetDuelFilm
 }
 
 const getDuelRatingsForUpdate = `-- name: GetDuelRatingsForUpdate :many
-SELECT id, rating
+SELECT id, rating, duel_count
 FROM films
 WHERE films.id IN (
     SELECT film_a_id FROM duels WHERE duels.id = $1
@@ -150,8 +174,9 @@ FOR UPDATE
 `
 
 type GetDuelRatingsForUpdateRow struct {
-	ID     int32
-	Rating float64
+	ID        int32
+	Rating    float64
+	DuelCount int32
 }
 
 func (q *Queries) GetDuelRatingsForUpdate(ctx context.Context, id uuid.UUID) ([]GetDuelRatingsForUpdateRow, error) {
@@ -163,7 +188,7 @@ func (q *Queries) GetDuelRatingsForUpdate(ctx context.Context, id uuid.UUID) ([]
 	var items []GetDuelRatingsForUpdateRow
 	for rows.Next() {
 		var i GetDuelRatingsForUpdateRow
-		if err := rows.Scan(&i.ID, &i.Rating); err != nil {
+		if err := rows.Scan(&i.ID, &i.Rating, &i.DuelCount); err != nil {
 			return nil, err
 		}
 		items = append(items, i)

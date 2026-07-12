@@ -29,7 +29,10 @@ type Film struct {
 	ReleaseYear int16
 	DirectorID  int32
 	ImagePath   *string
+	Popularity  float64
+	VoteAverage float64
 	Rating      float64
+	DuelCount   int32
 	CreatedAt   time.Time
 	UpdatedAt   time.Time
 }

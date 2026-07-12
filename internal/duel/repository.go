@@ -14,11 +14,12 @@ import (
 )
 
 type repository struct {
-	pool *pgxpool.Pool
+	pool         *pgxpool.Pool
+	ratingWindow int32
 }
 
-func NewRepository(pool *pgxpool.Pool) *repository {
-	return &repository{pool: pool}
+func NewRepository(pool *pgxpool.Pool, ratingWindow int32) *repository {
+	return &repository{pool: pool, ratingWindow: ratingWindow}
 }
 
 func (r *repository) queries(ctx context.Context) *dbgen.Queries {
@@ -86,8 +87,9 @@ func (r *repository) GetDuelRatingsForUpdate(ctx context.Context, id uuid.UUID) 
 	var ratings [2]film.FilmRating
 	for i := range 2 {
 		ratings[i] = film.FilmRating{
-			Id:     int(rows[i].ID),
-			Rating: rows[i].Rating,
+			Id:        int(rows[i].ID),
+			Rating:    rows[i].Rating,
+			DuelCount: rows[i].DuelCount,
 		}
 	}
 	return ratings, nil
@@ -110,7 +112,10 @@ func (r *repository) SelectRandomFilms(ctx context.Context) ([2]film.Film, error
 }
 
 func (r *repository) ComposeDuel(ctx context.Context, winnerId int) (Duel, error) {
-	row, err := r.queries(ctx).ComposeDuel(ctx, int32(winnerId))
+	row, err := r.queries(ctx).ComposeDuel(ctx, dbgen.ComposeDuelParams{
+		WinnerID:     int32(winnerId),
+		RatingWindow: float64(r.ratingWindow),
+	})
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return Duel{}, fmt.Errorf("no opponent film available for winner(id: %v): %w", winnerId, ErrNotEnoughFilms)
