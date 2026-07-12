@@ -15,7 +15,7 @@ WHERE films.id IN (
 );
 
 -- name: GetDuelRatingsForUpdate :many
-SELECT id, rating
+SELECT id, rating, duel_count
 FROM films
 WHERE films.id IN (
     SELECT film_a_id FROM duels WHERE duels.id = $1

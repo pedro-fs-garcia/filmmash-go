@@ -138,7 +138,7 @@ func (q *Queries) GetDuelFilms(ctx context.Context, id uuid.UUID) ([]GetDuelFilm
 }
 
 const getDuelRatingsForUpdate = `-- name: GetDuelRatingsForUpdate :many
-SELECT id, rating
+SELECT id, rating, duel_count
 FROM films
 WHERE films.id IN (
     SELECT film_a_id FROM duels WHERE duels.id = $1
@@ -150,8 +150,9 @@ FOR UPDATE
 `
 
 type GetDuelRatingsForUpdateRow struct {
-	ID     int32
-	Rating float64
+	ID        int32
+	Rating    float64
+	DuelCount int32
 }
 
 func (q *Queries) GetDuelRatingsForUpdate(ctx context.Context, id uuid.UUID) ([]GetDuelRatingsForUpdateRow, error) {
@@ -163,7 +164,7 @@ func (q *Queries) GetDuelRatingsForUpdate(ctx context.Context, id uuid.UUID) ([]
 	var items []GetDuelRatingsForUpdateRow
 	for rows.Next() {
 		var i GetDuelRatingsForUpdateRow
-		if err := rows.Scan(&i.ID, &i.Rating); err != nil {
+		if err := rows.Scan(&i.ID, &i.Rating, &i.DuelCount); err != nil {
 			return nil, err
 		}
 		items = append(items, i)

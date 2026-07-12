@@ -36,6 +36,16 @@ func seedFilms(t *testing.T, ctx context.Context) (film.Film, film.Film, duel.Du
 	return a, b, d
 }
 
+func filmDuelCount(t *testing.T, ctx context.Context, filmId int) int {
+	t.Helper()
+	q := database.ExtractTx(ctx, testPool)
+	var n int
+	if err := q.QueryRow(ctx, `SELECT duel_count FROM films WHERE id = $1`, filmId).Scan(&n); err != nil {
+		t.Fatalf("reading duel_count for film %d: %v", filmId, err)
+	}
+	return n
+}
+
 func IsValidUUID(t *testing.T, u string) bool {
 	t.Helper()
 	parsed, err := uuid.Parse(u)
@@ -92,6 +102,35 @@ func TestRepository(t *testing.T) {
 		}
 		if !IsValidUUID(t, v.Id.String()) {
 			t.Fatalf("got %v, want VERSION_7", v.Id.Version())
+		}
+	})
+
+	t.Run("InsertVote increments both films' duel_count", func(t *testing.T) {
+		ntx, err := tx.Begin(ctx)
+		if err != nil {
+			t.Fatalf("begin savepoint: %v", err)
+		}
+		defer ntx.Rollback(ctx)
+		nctx := database.InjectTx(ctx, ntx)
+
+		beforeWinner := filmDuelCount(t, nctx, fa.Id)
+		beforeLoser := filmDuelCount(t, nctx, fb.Id)
+
+		nd := duel.Duel{FilmA: &fa, FilmB: &fb}
+		if err := duelRepo.Insert(nctx, &nd); err != nil {
+			t.Fatalf("seeding duel: %v", err)
+		}
+		v := testVote
+		v.DuelId = nd.Id
+		if err := repo.InsertVote(nctx, &v); err != nil {
+			t.Fatalf("InsertVote: %v", err)
+		}
+
+		if got := filmDuelCount(t, nctx, fa.Id); got != beforeWinner+1 {
+			t.Fatalf("winner duel_count = %d, want %d", got, beforeWinner+1)
+		}
+		if got := filmDuelCount(t, nctx, fb.Id); got != beforeLoser+1 {
+			t.Fatalf("loser duel_count = %d, want %d", got, beforeLoser+1)
 		}
 	})
 

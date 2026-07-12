@@ -86,8 +86,9 @@ func (r *repository) GetDuelRatingsForUpdate(ctx context.Context, id uuid.UUID) 
 	var ratings [2]film.FilmRating
 	for i := range 2 {
 		ratings[i] = film.FilmRating{
-			Id:     int(rows[i].ID),
-			Rating: rows[i].Rating,
+			Id:        int(rows[i].ID),
+			Rating:    rows[i].Rating,
+			DuelCount: rows[i].DuelCount,
 		}
 	}
 	return ratings, nil
