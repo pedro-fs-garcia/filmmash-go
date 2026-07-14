@@ -60,8 +60,12 @@ func initRouter(
 	filmService := film.NewService(filmRepo, txm)
 	filmHandler := film.NewHandler(logger, filmService)
 
-	duelRepo := duel.NewRepository(pool, cfg.DuelRatingWindow)
-	duelService := duel.NewService(m.DuelMetrics, duelRepo, txm, filmService)
+	duelServiceCfg := duel.ServiceConfig{
+		PopularityWeight: cfg.DuelPopularityWeight,
+		RatingWindow:     cfg.DuelRatingWindow,
+	}
+	duelRepo := duel.NewRepository(pool)
+	duelService := duel.NewService(m.DuelMetrics, duelRepo, txm, filmService, duelServiceCfg)
 	duelHandler := duel.NewHandler(logger, duelService)
 
 	voteRepo := vote.NewRepository(pool)

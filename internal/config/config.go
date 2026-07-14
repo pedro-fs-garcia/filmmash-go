@@ -1,6 +1,7 @@
 package config
 
 import (
+	"fmt"
 	"os"
 
 	"github.com/caarlos0/env/v11"
@@ -25,7 +26,8 @@ type Config struct {
 
 	AppBaseURL string `env:"APP_BASE_URL" envDefault:"http://localhost:8080"`
 
-	DuelRatingWindow int32 `env:"DUEL_RATING_WINDOW" envDefault:"350"`
+	DuelRatingWindow     int32   `env:"DUEL_RATING_WINDOW" envDefault:"350"`
+	DuelPopularityWeight float64 `env:"DUEL_POPULARITY_WEIGHT" envDefault:"0.0"`
 
 	AESKey []byte
 }
@@ -46,6 +48,9 @@ func Load() *Config {
 	cfg.AESKey, err = loadAESKey()
 	if err != nil {
 		panic(err)
+	}
+	if cfg.DuelPopularityWeight < 0 {
+		panic(fmt.Errorf("Failed to load .env. POPULARITY_WEIGHT must be >= 0"))
 	}
 	return &cfg
 }

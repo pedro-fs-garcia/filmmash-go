@@ -17,12 +17,10 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-const testRatingWindow int32 = 200
-
 func seedFilms(t *testing.T, ctx context.Context) (film.Film, film.Film, duel.Duel) {
 	t.Helper()
 	filmRepo := film.NewRepository(testPool)
-	duelRepo := duel.NewRepository(testPool, testRatingWindow)
+	duelRepo := duel.NewRepository(testPool)
 	var testDirector = film.Director{Id: 543, Name: "Testing director"}
 	a := film.Film{Id: 2001, Title: "Alpha", Year: 2000, Director: testDirector, ImagePath: "a.jpg"}
 	b := film.Film{Id: 2002, Title: "Beta", Year: 2001, Director: testDirector, ImagePath: "b.jpg"}
@@ -78,7 +76,7 @@ func TestRepository(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
 	repo := vote.NewRepository(testPool)
-	duelRepo := duel.NewRepository(testPool, testRatingWindow)
+	duelRepo := duel.NewRepository(testPool)
 
 	tx, err := testPool.Begin(ctx)
 	if err != nil {
@@ -213,7 +211,7 @@ func seedUser(t *testing.T, ctx context.Context, sub string) uuid.UUID {
 func seedDuel(t *testing.T, ctx context.Context, a, b *film.Film) duel.Duel {
 	t.Helper()
 	d := duel.Duel{FilmA: a, FilmB: b}
-	if err := duel.NewRepository(testPool, testRatingWindow).Insert(ctx, &d); err != nil {
+	if err := duel.NewRepository(testPool).Insert(ctx, &d); err != nil {
 		t.Fatalf("seeding duel: %v", err)
 	}
 	return d
