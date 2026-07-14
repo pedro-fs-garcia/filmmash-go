@@ -9,19 +9,26 @@ import (
 	"github.com/google/uuid"
 )
 
+type ServiceConfig struct {
+	PopularityWeight float64
+	RatingWindow     int32
+}
+
 type Service struct {
 	metrics     *metrics.DuelMetrics
 	repo        *repository
 	txManager   *database.TxManager
 	filmService *film.Service
+	cfg         ServiceConfig
 }
 
-func NewService(metrics *metrics.DuelMetrics, repo *repository, txm *database.TxManager, filmService *film.Service) *Service {
+func NewService(metrics *metrics.DuelMetrics, repo *repository, txm *database.TxManager, filmService *film.Service, cfg ServiceConfig) *Service {
 	return &Service{
 		metrics:     metrics,
 		repo:        repo,
 		txManager:   txm,
 		filmService: filmService,
+		cfg:         cfg,
 	}
 }
 
@@ -56,7 +63,7 @@ func (s *Service) CreateRandomDuel(ctx context.Context) (Duel, error) {
 }
 
 func (s *Service) ComposeDuel(ctx context.Context, winnerId int) (Duel, error) {
-	duel, err := s.repo.ComposeDuel(ctx, winnerId)
+	duel, err := s.repo.ComposeDuel(ctx, winnerId, s.cfg.PopularityWeight, s.cfg.RatingWindow)
 	if err != nil {
 		return Duel{}, err
 	}

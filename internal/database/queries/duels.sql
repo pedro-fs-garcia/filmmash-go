@@ -37,25 +37,30 @@ WITH winner AS (
     SELECT rating FROM films WHERE films.id = sqlc.arg(winner_id)
 ),
 in_window AS (
-    SELECT films.id FROM films, winner
+    SELECT films.id, films.popularity FROM films, winner
     WHERE films.id <> sqlc.arg(winner_id)
         AND films.rating BETWEEN winner.rating - sqlc.arg(rating_window)::float
             AND winner.rating + sqlc.arg(rating_window)::float
 ),
 closest AS (
-    SELECT films.id FROM films, winner
+    SELECT films.id, films.popularity FROM films, winner
     WHERE films.id <> sqlc.arg(winner_id)
     ORDER BY ABS(films.rating - winner.rating) LIMIT 40
 ),
 random_id AS (
-    -- Random opponent within the rating window; if none, random among the 40 closest.
+    -- Popularity-weighted random opponent within the rating window; if none,
+    -- among the 40 closest. Exponential-clock sampling: P(i) ∝ weight, with a
+    -- +1 baseline so popularity=0 films stay selectable (and avoid div by zero).
+    -- popularity_weight scales the effect; 0 = uniform random selection.
     SELECT id FROM (
-        SELECT id FROM in_window
+        SELECT id, popularity FROM in_window
         UNION ALL
-        SELECT id FROM closest
+        SELECT id, popularity FROM closest
         WHERE NOT EXISTS (SELECT 1 FROM in_window)
     ) AS candidates
-    ORDER BY RANDOM() LIMIT 1
+    ORDER BY -LN(1.0 - RANDOM())
+        / (1.0 + candidates.popularity * sqlc.arg(popularity_weight)::float)
+    LIMIT 1
 ),
 inserted_duel AS (
     INSERT INTO duels (film_a_id, film_b_id)

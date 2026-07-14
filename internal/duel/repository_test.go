@@ -19,6 +19,8 @@ import (
 
 const testRatingWindow int32 = 200
 
+const testPopularityWeight float64 = 1.0
+
 func seedFilms(t *testing.T, ctx context.Context) (film.Film, film.Film) {
 	t.Helper()
 	filmRepo := film.NewRepository(testPool)
@@ -62,7 +64,7 @@ func TestMain(m *testing.M) {
 func TestRepository(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
-	repo := duel.NewRepository(testPool, testRatingWindow)
+	repo := duel.NewRepository(testPool)
 
 	tx, err := testPool.Begin(ctx)
 	if err != nil {
@@ -208,7 +210,7 @@ func TestRepository(t *testing.T) {
 		defer ntx.Rollback(ctx)
 		nctx := database.InjectTx(ctx, ntx)
 
-		d, err := repo.ComposeDuel(nctx, a.Id)
+		d, err := repo.ComposeDuel(nctx, a.Id, testPopularityWeight, testRatingWindow)
 		if err != nil {
 			t.Fatalf("ComposeDuel: %v", err)
 		}
@@ -243,7 +245,7 @@ func TestRepository(t *testing.T) {
 		}
 
 		for range 15 {
-			d, err := repo.ComposeDuel(ictx, winner.Id)
+			d, err := repo.ComposeDuel(ictx, winner.Id, testPopularityWeight, testRatingWindow)
 			if err != nil {
 				t.Fatalf("ComposeDuel: %v", err)
 			}
@@ -272,7 +274,7 @@ func TestRepository(t *testing.T) {
 			}
 		}
 
-		d, err := repo.ComposeDuel(ictx, outlier.Id)
+		d, err := repo.ComposeDuel(ictx, outlier.Id, testPopularityWeight, testRatingWindow)
 		if err != nil {
 			t.Fatalf("ComposeDuel must still find an opponent for an outlier film: %v", err)
 		}
@@ -300,7 +302,7 @@ func TestRepository(t *testing.T) {
 			t.Fatalf("seeding lone film: %v", err)
 		}
 
-		_, err = repo.ComposeDuel(ictx, lone.Id)
+		_, err = repo.ComposeDuel(ictx, lone.Id, testPopularityWeight, testRatingWindow)
 		if err == nil {
 			t.Fatal("got no error, want ErrNotEnoughFilms")
 		}

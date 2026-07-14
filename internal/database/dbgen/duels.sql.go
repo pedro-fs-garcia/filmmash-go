@@ -16,25 +16,30 @@ WITH winner AS (
     SELECT rating FROM films WHERE films.id = $1
 ),
 in_window AS (
-    SELECT films.id FROM films, winner
+    SELECT films.id, films.popularity FROM films, winner
     WHERE films.id <> $1
         AND films.rating BETWEEN winner.rating - $2::float
             AND winner.rating + $2::float
 ),
 closest AS (
-    SELECT films.id FROM films, winner
+    SELECT films.id, films.popularity FROM films, winner
     WHERE films.id <> $1
     ORDER BY ABS(films.rating - winner.rating) LIMIT 40
 ),
 random_id AS (
-    -- Random opponent within the rating window; if none, random among the 40 closest.
+    -- Popularity-weighted random opponent within the rating window; if none,
+    -- among the 40 closest. Exponential-clock sampling: P(i) ∝ weight, with a
+    -- +1 baseline so popularity=0 films stay selectable (and avoid div by zero).
+    -- popularity_weight scales the effect; 0 = uniform random selection.
     SELECT id FROM (
-        SELECT id FROM in_window
+        SELECT id, popularity FROM in_window
         UNION ALL
-        SELECT id FROM closest
+        SELECT id, popularity FROM closest
         WHERE NOT EXISTS (SELECT 1 FROM in_window)
     ) AS candidates
-    ORDER BY RANDOM() LIMIT 1
+    ORDER BY -LN(1.0 - RANDOM())
+        / (1.0 + candidates.popularity * $3::float)
+    LIMIT 1
 ),
 inserted_duel AS (
     INSERT INTO duels (film_a_id, film_b_id)
@@ -54,8 +59,9 @@ JOIN films fb ON fb.id = i.film_b_id JOIN directors db ON db.id = fb.director_id
 `
 
 type ComposeDuelParams struct {
-	WinnerID     int32
-	RatingWindow float64
+	WinnerID         int32
+	RatingWindow     float64
+	PopularityWeight float64
 }
 
 type ComposeDuelRow struct {
@@ -77,7 +83,7 @@ type ComposeDuelRow struct {
 }
 
 func (q *Queries) ComposeDuel(ctx context.Context, arg ComposeDuelParams) (ComposeDuelRow, error) {
-	row := q.db.QueryRow(ctx, composeDuel, arg.WinnerID, arg.RatingWindow)
+	row := q.db.QueryRow(ctx, composeDuel, arg.WinnerID, arg.RatingWindow, arg.PopularityWeight)
 	var i ComposeDuelRow
 	err := row.Scan(
 		&i.DuelID,

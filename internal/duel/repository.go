@@ -14,12 +14,11 @@ import (
 )
 
 type repository struct {
-	pool         *pgxpool.Pool
-	ratingWindow int32
+	pool *pgxpool.Pool
 }
 
-func NewRepository(pool *pgxpool.Pool, ratingWindow int32) *repository {
-	return &repository{pool: pool, ratingWindow: ratingWindow}
+func NewRepository(pool *pgxpool.Pool) *repository {
+	return &repository{pool: pool}
 }
 
 func (r *repository) queries(ctx context.Context) *dbgen.Queries {
@@ -111,10 +110,11 @@ func (r *repository) SelectRandomFilms(ctx context.Context) ([2]film.Film, error
 	return films, nil
 }
 
-func (r *repository) ComposeDuel(ctx context.Context, winnerId int) (Duel, error) {
+func (r *repository) ComposeDuel(ctx context.Context, winnerId int, popularityWeight float64, ratingWindow int32) (Duel, error) {
 	row, err := r.queries(ctx).ComposeDuel(ctx, dbgen.ComposeDuelParams{
-		WinnerID:     int32(winnerId),
-		RatingWindow: float64(r.ratingWindow),
+		WinnerID:         int32(winnerId),
+		RatingWindow:     float64(ratingWindow),
+		PopularityWeight: popularityWeight,
 	})
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
