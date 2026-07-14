@@ -17,6 +17,10 @@ func NewService(repo *repository, txManager *database.TxManager) *Service {
 	}
 }
 
+func (s *Service) InsertFilm(ctx context.Context, f *Film) error {
+	return s.repo.InsertFilm(ctx, f)
+}
+
 func (s *Service) GetFilm(ctx context.Context, id int) (Film, error) {
 	return s.repo.GetFilm(ctx, id)
 }
@@ -46,4 +50,17 @@ func (s *Service) UpdateRatings(ctx context.Context, films []*FilmRating) error 
 
 func (s *Service) CountTotal(ctx context.Context) (int64, error) {
 	return s.repo.CountTotal(ctx)
+}
+
+func (s *Service) IdsInCatalogue(ctx context.Context, ids []int32) (map[int32]bool, error) {
+	idList, err := s.repo.IdsInCatalogue(ctx, ids)
+	if err != nil {
+		return nil, err
+	}
+	existing := make(map[int32]bool, len(idList))
+	for _, id := range idList {
+		existing[id] = true
+	}
+
+	return existing, nil
 }

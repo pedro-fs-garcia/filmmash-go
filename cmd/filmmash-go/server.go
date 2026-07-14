@@ -9,6 +9,7 @@ import (
 	"filmmash/internal/duel"
 	"filmmash/internal/film"
 	"filmmash/internal/metrics"
+	"filmmash/internal/tmdb"
 	"filmmash/internal/vote"
 	"filmmash/internal/web"
 	"filmmash/internal/zitadel"
@@ -53,6 +54,8 @@ func initRouter(
 
 	m := metrics.NewMetrics()
 
+	tmdbClient := tmdb.NewClient("https://api.themoviedb.org/3", cfg.TmdbApitoken)
+
 	filmRepo := film.NewRepository(pool)
 	filmService := film.NewService(filmRepo, txm)
 	filmHandler := film.NewHandler(logger, filmService)
@@ -96,8 +99,8 @@ func initRouter(
 	authHandler := auth.NewHandler(logger, authService, idp, oidcFlowCodec, hcfg)
 
 	adminRepo := admin.NewRepository(pool)
-	adminService := admin.NewService(adminRepo, idp, zClient)
-	adminHandler := admin.NewHandler(logger, adminService)
+	adminService := admin.NewService(adminRepo, idp, zClient, tmdbClient, filmService)
+	adminHandler := admin.NewHandler(logger, adminService, tmdbClient)
 
 	router := web.NewRouter(
 		logger,

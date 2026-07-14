@@ -193,3 +193,11 @@ func (r *repository) CountTotal(ctx context.Context) (int64, error) {
 	}
 	return n, nil
 }
+
+func (r *repository) IdsInCatalogue(ctx context.Context, ids []int32) ([]int32, error) {
+	idList, err := r.queries(ctx).IdsInFilms(ctx, ids)
+	if err != nil {
+		return nil, database.ParseDBError("querying existing films", err)
+	}
+	return idList, nil
+}

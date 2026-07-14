@@ -51,4 +51,10 @@ func init() {
 	TemplateCache["adminUsers"] = template.Must(template.ParseFS(TemplatesFS,
 		"template/admin_users.html",
 	))
+	TemplateCache["adminTmdbResults"] = template.Must(template.ParseFS(TemplatesFS,
+		"template/admin_tmdb_results.html",
+	))
+	TemplateCache["adminTmdbAddResult"] = template.Must(template.ParseFS(TemplatesFS,
+		"template/admin_tmdb_add_result.html",
+	))
 }

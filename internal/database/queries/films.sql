@@ -63,3 +63,6 @@ UPDATE films SET rating = $1 WHERE id = $2 RETURNING id;
 
 -- name: CountFilms :one
 SELECT COUNT(*) FROM films;
+
+-- name: IdsInFilms :many
+SELECT id FROM films WHERE id = ANY($1::INTEGER[]);

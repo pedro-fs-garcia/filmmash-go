@@ -3,6 +3,8 @@ package admin
 import (
 	"context"
 	"filmmash/internal/auth"
+	"filmmash/internal/film"
+	"filmmash/internal/tmdb"
 	"filmmash/internal/zitadel"
 )
 
@@ -11,16 +13,22 @@ type AuthzFetcher interface {
 }
 
 type Service struct {
-	repo    *repository
-	idp     *auth.Provider
-	fetcher AuthzFetcher
+	repo        *repository
+	idp         *auth.Provider
+	fetcher     AuthzFetcher
+	tmdbClient  *tmdb.Client
+	filmService *film.Service
 }
 
-func NewService(repo *repository, provider *auth.Provider, fetcher AuthzFetcher) *Service {
+func NewService(
+	repo *repository, provider *auth.Provider, fetcher AuthzFetcher, tmdbClient *tmdb.Client, filmService *film.Service,
+) *Service {
 	return &Service{
-		repo:    repo,
-		idp:     provider,
-		fetcher: fetcher,
+		repo:        repo,
+		idp:         provider,
+		fetcher:     fetcher,
+		tmdbClient:  tmdbClient,
+		filmService: filmService,
 	}
 }
 
@@ -50,4 +58,25 @@ func (s *Service) GetUsersPaginated(ctx context.Context, pars PaginationParamete
 		})
 	}
 	return toPaginatedUsers(pars.Size, rows), nil
+}
+
+func (s *Service) InsertFilm(ctx context.Context, film *film.Film) error {
+	return s.filmService.InsertFilm(ctx, film)
+}
+
+func (s *Service) MarkInCatalogue(ctx context.Context, movies []tmdb.Movie) error {
+	ids := make([]int32, len(movies))
+	for i, m := range movies {
+		ids[i] = int32(m.Id)
+	}
+
+	in, err := s.filmService.IdsInCatalogue(ctx, ids)
+	if err != nil {
+		return err
+	}
+
+	for i := range movies {
+		movies[i].InCatalogue = in[int32(movies[i].Id)]
+	}
+	return nil
 }

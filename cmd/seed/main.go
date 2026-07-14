@@ -31,7 +31,7 @@ func main() {
 		panic(err)
 	}
 
-	client := tmdb.NewTmdbClient("https://api.themoviedb.org/3", cfg.TmdbApitoken)
+	client := tmdb.NewClient("https://api.themoviedb.org/3", cfg.TmdbApitoken)
 	totalTop := 0
 	for page := 1; page <= 3; page++ {
 		fmt.Printf("Downloading top rated movies from TMDB, page %d\n", page)

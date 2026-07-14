@@ -67,6 +67,8 @@ func NewRouter(
 			r.Use(auth.RequiresRole("admin"))
 			r.Get("/", adminHandler.ListUsersPaginatedHandler)
 			r.Get("/users", adminHandler.ListUsersPaginatedHandler)
+			r.Get("/films/search", adminHandler.SearchFilmOnTmdbHandler)
+			r.Post("/films/insert_from_tmdb/{id}", adminHandler.AddTmdbFilmHandler)
 		})
 
 		r.Route("/user", func(r chi.Router) {

@@ -1,0 +1,13 @@
+{{ define "adminTmdbAddResult" }}
+<div class="film-list-item admin-tmdb-result">
+    {{ if .Movie.PosterPath }}
+    <img src="https://image.tmdb.org/t/p/w92{{ .Movie.PosterPath }}" alt="{{ .Movie.Title }}" loading="lazy">
+    {{ else }}
+    <div class="admin-tmdb-poster-missing">?</div>
+    {{ end }}
+    <div class="film-list-item-info">
+        <h2>{{ .Movie.Title }} <span class="film-year">({{ if ge (len .Movie.ReleaseDate) 4 }}{{ slice .Movie.ReleaseDate 0 4 }}{{ else }}—{{ end }})</span></h2>
+        <span class="admin-tmdb-status{{ if .Added }} added{{ end }}">{{ .Status }}</span>
+    </div>
+</div>
+{{ end }}

@@ -1,0 +1,33 @@
+{{ define "adminTmdbResults" }}
+{{ range .Movies }}
+<div class="film-list-item admin-tmdb-result">
+    {{ if .PosterPath }}
+    <img src="https://image.tmdb.org/t/p/w92{{ .PosterPath }}" alt="{{ .Title }}" loading="lazy">
+    {{ else }}
+    <div class="admin-tmdb-poster-missing">?</div>
+    {{ end }}
+    <div class="film-list-item-info">
+        <h2>{{ .Title }} <span class="film-year">({{ if ge (len .ReleaseDate) 4 }}{{ slice .ReleaseDate 0 4 }}{{ else }}—{{ end }})</span></h2>
+        {{ if .InCatalogue }}
+        <span class="admin-tmdb-status">Already in the catalog</span>
+        {{ else }}
+        <button class="admin-tmdb-add" type="button"
+            hx-post="/admin/films/insert_from_tmdb/{{ .Id }}"
+            hx-vals='{"tmdb_id": {{ .Id }}}'
+            hx-target="closest .admin-tmdb-result"
+            hx-swap="outerHTML">
+            Add to catalog
+        </button>
+        {{ end }}
+    </div>
+</div>
+{{ else }}
+<p class="film-list-empty">No films found on TMDB.</p>
+{{ end }}
+{{ if .HasMore }}
+<div class="film-list-sentinel"
+    hx-get="/admin/films/search?search={{ .Search | urlquery }}&page={{ .NextPage }}"
+    hx-trigger="revealed"
+    hx-swap="outerHTML"></div>
+{{ end }}
+{{ end }}

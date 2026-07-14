@@ -2,7 +2,22 @@
 
 {{ define "content" }}
 
-<h1>Admin — Users</h1>
+<h1>Admin</h1>
+
+<div class="admin-tmdb">
+    <h2>Add films from TMDB</h2>
+    <form class="film-search" role="search" onsubmit="return false">
+        <input type="search" name="search" placeholder="Search TMDB by title…"
+            autocomplete="off"
+            hx-get="/admin/films/search?page=1"
+            hx-trigger="input[target.value.trim().length >= 3] changed delay:300ms, search[target.value.trim().length >= 3]"
+            hx-target="#admin-tmdb-results"
+            hx-swap="innerHTML">
+    </form>
+    <div id="admin-tmdb-results"></div>
+</div>
+
+<h2>Users</h2>
 
 <div class="admin-users">
     <table class="admin-user-table">

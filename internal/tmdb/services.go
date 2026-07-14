@@ -3,40 +3,12 @@ package tmdb
 import (
 	"fmt"
 	"log"
+	"net/http"
+	"net/url"
 	"strconv"
 )
 
-type Movie struct {
-	Id          int     `json:"id"`
-	Title       string  `json:"title"`
-	ReleaseDate string  `json:"release_date"`
-	PosterPath  string  `json:"poster_path"`
-	VoteAverage float32 `json:"vote_average"`
-	Popularity  float32 `json:"popularity"`
-	Director    Director
-}
-
-type Director struct {
-	Id   int
-	Name string
-}
-
-type MovieCredits struct {
-	Job  string `json:"job"`
-	Name string `json:"name"`
-	Id   int    `json:"id"`
-}
-
-type CreditsResponse struct {
-	Crew []MovieCredits `json:"crew"`
-}
-
-type TmdbStandardResponse struct {
-	Page    int     `json:"page"`
-	Results []Movie `json:"results"`
-}
-
-func (c *TmdbClient) GetPopulars(page int) ([]Movie, error) {
+func (c *Client) GetPopulars(page int) ([]Movie, error) {
 	path := "/movie/popular?language=en-US&page=" + strconv.Itoa(page)
 	req, err := c.newRequest("GET", path, nil)
 	if err != nil {
@@ -63,7 +35,7 @@ func (c *TmdbClient) GetPopulars(page int) ([]Movie, error) {
 	return movies, nil
 }
 
-func (c *TmdbClient) GetDirector(movieId int) (*Director, error) {
+func (c *Client) GetDirector(movieId int) (*Director, error) {
 	str := fmt.Sprintf("/movie/%d/credits", movieId)
 	req, err := c.newRequest("GET", str, nil)
 	if err != nil {
@@ -89,7 +61,7 @@ func (c *TmdbClient) GetDirector(movieId int) (*Director, error) {
 	return nil, nil
 }
 
-func (c *TmdbClient) GetTopRated(page int) ([]Movie, error) {
+func (c *Client) GetTopRated(page int) ([]Movie, error) {
 	var total int
 	movies := make([]Movie, 0)
 
@@ -118,4 +90,74 @@ func (c *TmdbClient) GetTopRated(page int) ([]Movie, error) {
 		}
 	}
 	return movies, nil
+}
+
+func (c *Client) SearchFilm(params *SearchFilmParams) (*TmdbStandardResponse, error) {
+	u, err := url.Parse("/search/movie")
+	if err != nil {
+		return nil, err
+	}
+
+	q := u.Query()
+	q.Set("query", params.Query)
+	if params.Page > 0 {
+		q.Set("page", strconv.Itoa(int(params.Page)))
+	}
+	u.RawQuery = q.Encode()
+
+	req, err := c.newRequest(http.MethodGet, u.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var result TmdbStandardResponse
+	err = c.Do(req, &result)
+	if err != nil {
+		return nil, err
+	}
+
+	return &result, nil
+}
+
+type FilmDetailResponse struct {
+	Id          int             `json:"id"`
+	Title       string          `json:"title"`
+	ReleaseDate string          `json:"release_date"`
+	PosterPath  string          `json:"poster_path"`
+	VoteAverage float32         `json:"vote_average"`
+	Popularity  float32         `json:"popularity"`
+	Credits     CreditsResponse `json:"credits"`
+}
+
+func (c *Client) GetFilm(filmId int32) (Movie, error) {
+	path := fmt.Sprintf("/movie/%d?append_to_response=credits", filmId)
+	req, err := c.newRequest(http.MethodGet, path, nil)
+	if err != nil {
+		return Movie{}, err
+	}
+
+	var result FilmDetailResponse
+	err = c.Do(req, &result)
+	if err != nil {
+		return Movie{}, err
+	}
+
+	var dir Director
+	for _, c := range result.Credits.Crew {
+		if c.Job == "Director" {
+			dir.Id = c.Id
+			dir.Name = c.Name
+			break
+		}
+	}
+
+	return Movie{
+		Id:          result.Id,
+		Title:       result.Title,
+		ReleaseDate: result.ReleaseDate,
+		PosterPath:  result.PosterPath,
+		VoteAverage: result.VoteAverage,
+		Popularity:  result.Popularity,
+		Director:    dir,
+	}, nil
 }

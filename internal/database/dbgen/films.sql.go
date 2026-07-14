@@ -97,6 +97,30 @@ func (q *Queries) GetRandomFilm(ctx context.Context) (GetRandomFilmRow, error) {
 	return i, err
 }
 
+const idsInFilms = `-- name: IdsInFilms :many
+SELECT id FROM films WHERE id = ANY($1::INTEGER[])
+`
+
+func (q *Queries) IdsInFilms(ctx context.Context, dollar_1 []int32) ([]int32, error) {
+	rows, err := q.db.Query(ctx, idsInFilms, dollar_1)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []int32
+	for rows.Next() {
+		var id int32
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const insertDirector = `-- name: InsertDirector :one
 INSERT INTO directors (id, name)
 VALUES ($1, $2)

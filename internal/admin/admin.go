@@ -1,6 +1,7 @@
 package admin
 
 import (
+	"filmmash/internal/tmdb"
 	"filmmash/internal/zitadel"
 	"time"
 
@@ -27,6 +28,19 @@ type UserDashData struct {
 type PaginatedUsers struct {
 	Users []UserDashData
 	Next  PaginationParameters
+}
+
+type TmdbSearchView struct {
+	Movies   []tmdb.Movie
+	Search   string
+	NextPage int
+	HasMore  bool
+}
+
+type TmdbAddResultView struct {
+	Movie  tmdb.Movie
+	Status string
+	Added  bool
 }
 
 func toPaginatedUsers(size int, users []UserDashData) PaginatedUsers {

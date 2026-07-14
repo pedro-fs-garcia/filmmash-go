@@ -486,7 +486,8 @@
             color: var(--ivory-dim);
         }
 
-        #film-list {
+        #film-list,
+        #admin-tmdb-results {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
             gap: clamp(0.6rem, 2vw, 1.1rem);
@@ -579,6 +580,62 @@
         }
 
         /* ===================== Admin dashboard =================== */
+        .admin-tmdb {
+            max-width: min(95vw, 1100px);
+            margin: 1.5rem auto 0;
+        }
+
+        .admin-tmdb h2 {
+            text-align: center;
+            color: var(--ivory-dim);
+        }
+
+        .admin-tmdb-poster-missing {
+            width: 64px;
+            aspect-ratio: 2 / 3;
+            flex-shrink: 0;
+            display: grid;
+            place-items: center;
+            color: var(--ivory-dim);
+            font-size: 1.4rem;
+            background: var(--noir-black);
+            border: 1px solid var(--line);
+        }
+
+        .admin-tmdb-add {
+            display: inline-block;
+            margin-top: 0.4em;
+            padding: 0.25em 0.9em;
+            color: var(--gold-bright);
+            font-family: inherit;
+            font-size: clamp(0.65rem, 5cqi, 0.85rem);
+            background: transparent;
+            border: 1px solid var(--line);
+            border-radius: 2px;
+            cursor: pointer;
+            transition: border-color 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .admin-tmdb-add:hover {
+            border-color: var(--gold-bright);
+            box-shadow: 0 0 12px rgba(201, 162, 75, 0.3);
+        }
+
+        .admin-tmdb-status {
+            display: inline-block;
+            margin-top: 0.4em;
+            padding: 0.25em 0.9em;
+            color: var(--ivory-dim);
+            font-size: clamp(0.65rem, 5cqi, 0.85rem);
+            border: 1px solid var(--line);
+            border-radius: 2px;
+        }
+
+        .admin-tmdb-status.added {
+            color: var(--gold-bright);
+            border-color: var(--gold-bright);
+        }
+
         .admin-users {
             max-width: min(95vw, 960px);
             margin: 1.5rem auto 0;

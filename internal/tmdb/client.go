@@ -8,14 +8,14 @@ import (
 	"time"
 )
 
-type TmdbClient struct {
+type Client struct {
 	baseURL     string
 	accessToken string
 	http        *http.Client
 }
 
-func NewTmdbClient(baseUrl string, accessToken string) *TmdbClient {
-	return &TmdbClient{
+func NewClient(baseUrl string, accessToken string) *Client {
+	return &Client{
 		baseURL:     baseUrl,
 		accessToken: accessToken,
 		http: &http.Client{
@@ -24,7 +24,7 @@ func NewTmdbClient(baseUrl string, accessToken string) *TmdbClient {
 	}
 }
 
-func (c *TmdbClient) newRequest(method, path string, body io.Reader) (*http.Request, error) {
+func (c *Client) newRequest(method, path string, body io.Reader) (*http.Request, error) {
 	req, err := http.NewRequest(method, c.baseURL+path, body)
 	if err != nil {
 		return nil, err
@@ -34,7 +34,7 @@ func (c *TmdbClient) newRequest(method, path string, body io.Reader) (*http.Requ
 	return req, nil
 }
 
-func (c *TmdbClient) Do(req *http.Request, out any) error {
+func (c *Client) Do(req *http.Request, out any) error {
 	res, err := c.http.Do(req)
 	if err != nil {
 		fmt.Println("Error accessing tmdb")
