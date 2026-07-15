@@ -5,9 +5,10 @@ The app shows you two movies side by side, you pick the better one, and an Elo r
 ## How it works
 
 1. A **duel** is created by pairing two random films (or the previous winner against a new challenger).
-2. The user votes for one of them. The vote is registered inside a single database transaction that locks both films' ratings (`SELECT ... FOR UPDATE`), computes the new Elo scores, stores the vote, and updates both films atomically.
-3. Ratings use the classic Elo formula with `K = 20` and a starting rating of `1400`.
-4. Anyone can vote anonymously; logged-in users get a personal vote history, and admins get a user-management dashboard.
+2. **Winner-stays matchmaking**: the challenger is drawn from the films closest to the winner in rating — at most `MAXIMUM_CANDIDATES`, filtered to a ±`DUEL_RATING_WINDOW` rating window, then padded back up to `MINIMUM_CANDIDATES` with the next-closest films when the window is too sparse (so runaway leaders don't just duel each other forever). The draw is weighted by TMDB popularity (`DUEL_POPULARITY_WEIGHT`), and films with fewer than `DUEL_NEW_FILM_THRESHOLD` duels get a `DUEL_NEW_FILM_BOOST` multiplier so newcomers get rated quickly. All knobs are documented in [.env.example](.env.example).
+3. The user votes for one of them. The vote is registered inside a single database transaction that locks both films' ratings (`SELECT ... FOR UPDATE`), computes the new Elo scores, stores the vote, and updates both films atomically.
+4. Ratings use the classic Elo formula with `K = 20` and a starting rating of `1400`.
+5. Anyone can vote anonymously; logged-in users get a personal vote history, and admins get a user-management dashboard.
 
 ## Tech stack
 
@@ -41,7 +42,7 @@ internal/
 │
 │  # vertical slices — each owns its handler, service, repository, and errors
 ├── film/               # film catalog, search, pagination, Elo calculation
-├── duel/               # duel creation (random pairing / winner-stays)
+├── duel/               # duel creation (random pairing / winner-stays matchmaking)
 ├── vote/               # vote registration (transactional Elo update), vote listings
 ├── auth/               # OAuth2/OIDC flow (Auth Code + PKCE), DB-backed sessions, middleware
 ├── admin/              # admin dashboard (user management through the IdP's API)

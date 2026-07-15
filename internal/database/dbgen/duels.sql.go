@@ -7,6 +7,7 @@ package dbgen
 
 import (
 	"context"
+	"time"
 
 	"github.com/google/uuid"
 )
@@ -115,6 +116,135 @@ func (q *Queries) CountPendingDuels(ctx context.Context) (int64, error) {
 	var count int64
 	err := row.Scan(&count)
 	return count, err
+}
+
+const createDuel = `-- name: CreateDuel :one
+WITH inserted_duel AS (
+    INSERT INTO duels (film_a_id, film_b_id)
+    VALUES ($1, $2)
+    RETURNING id AS duel_id, film_a_id, film_b_id
+)
+SELECT i.duel_id,
+    fa.id AS film_a_id, fa.title AS film_a_title, fa.release_year AS film_a_release_year,
+    fa.image_path AS film_a_image_path, fa.rating AS film_a_rating,
+    da.id AS director_a_id, da.name AS director_a_name,
+    fb.id AS film_b_id, fb.title AS film_b_title, fb.release_year AS film_b_release_year,
+    fb.image_path AS film_b_image_path, fb.rating AS film_b_rating,
+    db.id AS director_b_id, db.name AS director_b_name
+FROM inserted_duel i
+JOIN films fa ON fa.id = i.film_a_id JOIN directors da ON da.id = fa.director_id
+JOIN films fb ON fb.id = i.film_b_id JOIN directors db ON db.id = fb.director_id
+`
+
+type CreateDuelParams struct {
+	FilmAID int32
+	FilmBID int32
+}
+
+type CreateDuelRow struct {
+	DuelID           uuid.UUID
+	FilmAID          int32
+	FilmATitle       string
+	FilmAReleaseYear int16
+	FilmAImagePath   *string
+	FilmARating      float64
+	DirectorAID      int32
+	DirectorAName    string
+	FilmBID          int32
+	FilmBTitle       string
+	FilmBReleaseYear int16
+	FilmBImagePath   *string
+	FilmBRating      float64
+	DirectorBID      int32
+	DirectorBName    string
+}
+
+func (q *Queries) CreateDuel(ctx context.Context, arg CreateDuelParams) (CreateDuelRow, error) {
+	row := q.db.QueryRow(ctx, createDuel, arg.FilmAID, arg.FilmBID)
+	var i CreateDuelRow
+	err := row.Scan(
+		&i.DuelID,
+		&i.FilmAID,
+		&i.FilmATitle,
+		&i.FilmAReleaseYear,
+		&i.FilmAImagePath,
+		&i.FilmARating,
+		&i.DirectorAID,
+		&i.DirectorAName,
+		&i.FilmBID,
+		&i.FilmBTitle,
+		&i.FilmBReleaseYear,
+		&i.FilmBImagePath,
+		&i.FilmBRating,
+		&i.DirectorBID,
+		&i.DirectorBName,
+	)
+	return i, err
+}
+
+const findCandidates = `-- name: FindCandidates :many
+WITH winner AS (
+    SELECT rating FROM films WHERE films.id = $2
+),
+closest AS (
+    SELECT films.id, films.popularity, films.duel_count, films.created_at,
+        ABS(films.rating - winner.rating) <= $3::float AS in_window,
+        ABS(films.rating - winner.rating) AS rating_distance
+    FROM films, winner
+    WHERE films.id <> $2
+    ORDER BY ABS(films.rating - winner.rating)
+    LIMIT $4::int
+)
+SELECT id, popularity, duel_count, created_at FROM closest
+ORDER BY rating_distance
+LIMIT GREATEST(
+    (SELECT COUNT(*) FROM closest WHERE in_window),
+    $1::int
+)
+`
+
+type FindCandidatesParams struct {
+	MinCandidates int32
+	WinnerID      int32
+	RatingWindow  float64
+	MaxCandidates int32
+}
+
+type FindCandidatesRow struct {
+	ID         int32
+	Popularity float64
+	DuelCount  int32
+	CreatedAt  time.Time
+}
+
+func (q *Queries) FindCandidates(ctx context.Context, arg FindCandidatesParams) ([]FindCandidatesRow, error) {
+	rows, err := q.db.Query(ctx, findCandidates,
+		arg.MinCandidates,
+		arg.WinnerID,
+		arg.RatingWindow,
+		arg.MaxCandidates,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []FindCandidatesRow
+	for rows.Next() {
+		var i FindCandidatesRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Popularity,
+			&i.DuelCount,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const getDuelFilms = `-- name: GetDuelFilms :many

@@ -13,6 +13,7 @@ var ErrDuplicateEntry = errors.New("Duel already exists")
 var ErrInvalidDuel = errors.New("Invalid duel")
 var ErrMissingData = errors.New("Missing required data")
 var ErrNotEnoughFilms = errors.New("Not enough films to create duel")
+var ErrNoCandidates = fmt.Errorf("no candidates were found for duel: %w", ErrNotEnoughFilms)
 
 func parseDBError(ctxMsg string, err error) error {
 	if err == nil {

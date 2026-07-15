@@ -110,19 +110,41 @@ func (r *repository) SelectRandomFilms(ctx context.Context) ([2]film.Film, error
 	return films, nil
 }
 
-func (r *repository) ComposeDuel(ctx context.Context, winnerId int, popularityWeight float64, ratingWindow int32) (Duel, error) {
-	row, err := r.queries(ctx).ComposeDuel(ctx, dbgen.ComposeDuelParams{
-		WinnerID:         int32(winnerId),
-		RatingWindow:     float64(ratingWindow),
-		PopularityWeight: popularityWeight,
+func (r *repository) FindCandidates(ctx context.Context, id int32, minCandidates, maxCandidates int16, ratingWindow float64) ([]Candidate, error) {
+	rows, err := r.queries(ctx).FindCandidates(ctx, dbgen.FindCandidatesParams{
+		WinnerID:      id,
+		MinCandidates: int32(minCandidates),
+		MaxCandidates: int32(maxCandidates),
+		RatingWindow:  ratingWindow,
 	})
 	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			return Duel{}, fmt.Errorf("no opponent film available for winner(id: %v): %w", winnerId, ErrNotEnoughFilms)
-		}
-		return Duel{}, parseDBError(fmt.Sprintf("composing duel for winner %d", winnerId), err)
+		return nil, database.ParseDBError(fmt.Sprintf("querying for candidates to film %d", id), err)
 	}
 
+	candidates := make([]Candidate, len(rows))
+	for i, r := range rows {
+		candidates[i] = Candidate{
+			Id:         r.ID,
+			Popularity: r.Popularity,
+			DuelCount:  r.DuelCount,
+			CreatedAt:  r.CreatedAt,
+		}
+	}
+	return candidates, nil
+}
+
+func (r *repository) CreateDuel(ctx context.Context, filmAId, filmBId int32) (Duel, error) {
+	row, err := r.queries(ctx).CreateDuel(ctx, dbgen.CreateDuelParams{
+		FilmAID: filmAId,
+		FilmBID: filmBId,
+	})
+	if err != nil {
+		return Duel{}, database.ParseDBError(fmt.Sprintf("creating duel for films %d, %d", filmAId, filmBId), err)
+	}
+	return duelFromRow(row), nil
+}
+
+func duelFromRow(row dbgen.CreateDuelRow) Duel {
 	filmA := film.Film{
 		Id:     int(row.FilmAID),
 		Title:  row.FilmATitle,
@@ -155,7 +177,22 @@ func (r *repository) ComposeDuel(ctx context.Context, winnerId int, popularityWe
 		Id:    row.DuelID,
 		FilmA: &filmA,
 		FilmB: &filmB,
-	}, nil
+	}
+}
+
+func (r *repository) ComposeDuel(ctx context.Context, winnerId int, popularityWeight float64, ratingWindow int32) (Duel, error) {
+	row, err := r.queries(ctx).ComposeDuel(ctx, dbgen.ComposeDuelParams{
+		WinnerID:         int32(winnerId),
+		RatingWindow:     float64(ratingWindow),
+		PopularityWeight: popularityWeight,
+	})
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return Duel{}, fmt.Errorf("no opponent film available for winner(id: %v): %w", winnerId, ErrNotEnoughFilms)
+		}
+		return Duel{}, parseDBError(fmt.Sprintf("composing duel for winner %d", winnerId), err)
+	}
+	return duelFromRow(dbgen.CreateDuelRow(row)), nil
 }
 
 func (r *repository) CountPending(ctx context.Context) (int, error) {
