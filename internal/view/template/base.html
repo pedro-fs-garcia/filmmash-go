@@ -68,6 +68,8 @@
         body {
             margin: 0;
             min-height: 100vh;
+            display: flex;
+            flex-direction: column;
             color: var(--ivory);
             background:
                 radial-gradient(ellipse at 50% 0%, rgba(201, 162, 75, 0.10), transparent 60%),
@@ -102,6 +104,14 @@
             z-index: 3;
         }
 
+        /* Page content lives in <main>, a plain block container, so
+           margin:auto + max-width children lay out exactly as in block
+           flow; flex-grow pushes the footer to the viewport bottom on
+           short pages. */
+        main {
+            flex: 1 0 auto;
+        }
+
         /* ---- Marquee title --------------------------------------- */
         h1 {
             text-align: center;
@@ -111,7 +121,7 @@
         }
 
         /* ---- Intro / title-card copy ----------------------------- */
-        body > p {
+        main > p {
             /* Acompanha exatamente a largura da arena de duelo */
             max-width: min(95vw, var(--arena-max));
             margin-inline: auto;
@@ -223,7 +233,7 @@
         }
 
         /* Standalone film / detail pages */
-        body > h2 {
+        main > h2 {
             text-align: center;
             color: var(--ivory-dim);
         }
@@ -328,7 +338,10 @@
         .user-widget {
             position: fixed;
             top: 1rem;
-            right: 1rem;
+            /* 1rem visually collapses on the right because the vertical
+               scrollbar overlaps the margin; larger offset keeps the
+               widget clear of the page edge. */
+            right: 1.75rem;
             z-index: 20;
         }
 
@@ -711,6 +724,14 @@
         }
 
         /* ===================== Film modal ======================== */
+        /* body > * puts #modal and the footer at the same z-index 3,
+           which traps the overlay's z-index 30 inside #modal's stacking
+           context and let the (later-in-DOM) footer paint over the
+           dialog. Raise #modal so the dialog stacks above the footer. */
+        #modal {
+            z-index: 40;
+        }
+
         /* Hide the fixed hamburger while a modal is open so it can't
            overlap the dialog on small screens. */
         body:has(#modal .modal-overlay) .nav-toggle,
@@ -949,6 +970,25 @@
             padding-top: 1rem;
         }
 
+        .tmdb-attribution {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: center;
+            gap: 0.6rem;
+            font-size: 0.75rem;
+            opacity: 0.8;
+        }
+
+        .tmdb-attribution img {
+            height: 0.9rem;
+            width: auto;
+            margin: 0;
+            border: 0;
+            box-shadow: none;
+            filter: none;
+        }
+
         @media (max-width: 640px) {
             #duel::before {
                 display: none;
@@ -1024,12 +1064,21 @@
         })();
     </script>
 
-    {{ template "content" . }}
+    <main>
+        {{ template "content" . }}
+    </main>
 
     <div id="modal"></div>
 
     <footer>
         <p>&copy; 2026</p>
+        <p class="tmdb-attribution">
+            <a href="https://www.themoviedb.org" target="_blank" rel="noopener">
+                <img src="https://www.themoviedb.org/assets/2/v4/logos/v2/blue_short-8e7b30f73a4020692ccca9c88bafe5dcb6f8a62a4c6bc55cd9ba82bb2cd95f6c.svg"
+                    alt="TMDB">
+            </a>
+            <span>This product uses the TMDB API but is not endorsed or certified by TMDB.</span>
+        </p>
     </footer>
 </body>
 
