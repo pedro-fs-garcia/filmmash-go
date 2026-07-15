@@ -5,13 +5,18 @@ import (
 	"filmmash/internal/database"
 	"filmmash/internal/film"
 	"filmmash/internal/metrics"
+	"math/rand/v2"
 
 	"github.com/google/uuid"
 )
 
 type ServiceConfig struct {
-	PopularityWeight float64
-	RatingWindow     int32
+	MinCandidates        int16
+	MaxCandidates        int16
+	RatingWindow         int32
+	PopularityWeight     float64
+	NewFilmBoost         float64
+	NewFilmDuelThreshold int16
 }
 
 type Service struct {
@@ -73,4 +78,55 @@ func (s *Service) ComposeDuel(ctx context.Context, winnerId int) (Duel, error) {
 
 func (s *Service) CountPending(ctx context.Context) (int, error) {
 	return s.repo.CountPending(ctx)
+}
+
+func (s *Service) candidateWeight(c Candidate) float64 {
+	w := 1.0 + c.Popularity*s.cfg.PopularityWeight
+	if s.cfg.NewFilmBoost > 1 && c.DuelCount < int32(s.cfg.NewFilmDuelThreshold) {
+		w *= s.cfg.NewFilmBoost
+	}
+	return w
+}
+
+func DrawFromCandidates(candidates []Candidate, weight func(Candidate) float64) (int32, bool) {
+	if len(candidates) == 0 {
+		return 0, false
+	}
+	total := 0.0
+	for _, c := range candidates {
+		total += weight(c)
+	}
+	r := rand.Float64() * total
+	for _, c := range candidates {
+		r -= weight(c)
+		if r < 0 {
+			return c.Id, true
+		}
+	}
+	return candidates[len(candidates)-1].Id, true
+}
+
+func (s *Service) DuelFromWinner(ctx context.Context, winnerId int32) (Duel, error) {
+	var duel Duel
+	err := s.txManager.ExecTx(ctx, func(txCtx context.Context) error {
+		candidates, err := s.repo.FindCandidates(txCtx, winnerId, s.cfg.MinCandidates, s.cfg.MaxCandidates, float64(s.cfg.RatingWindow))
+		if err != nil {
+			return err
+		}
+
+		fid, ok := DrawFromCandidates(candidates, s.candidateWeight)
+		if !ok {
+			return ErrNoCandidates
+		}
+		duel, err = s.repo.CreateDuel(txCtx, winnerId, fid)
+		if err != nil {
+			return err
+		}
+		return nil
+	})
+	if err != nil {
+		return Duel{}, err
+	}
+	s.metrics.DuelCreated()
+	return duel, nil
 }

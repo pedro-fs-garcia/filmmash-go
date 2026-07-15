@@ -26,8 +26,12 @@ type Config struct {
 
 	AppBaseURL string `env:"APP_BASE_URL" envDefault:"http://localhost:8080"`
 
-	DuelRatingWindow     int32   `env:"DUEL_RATING_WINDOW" envDefault:"350"`
-	DuelPopularityWeight float64 `env:"DUEL_POPULARITY_WEIGHT" envDefault:"0.0"`
+	DuelRatingWindow         int32   `env:"DUEL_RATING_WINDOW"      envDefault:"350"`
+	DuelPopularityWeight     float64 `env:"DUEL_POPULARITY_WEIGHT"  envDefault:"0.0"`
+	MinCandidates            int16   `env:"MINIMUM_CANDIDATES"      envDefault:"10"`
+	MaxCandidates            int16   `env:"MAXIMUM_CANDIDATES"      envDefault:"40"`
+	DuelNewFilmBoost         float64 `env:"DUEL_NEW_FILM_BOOST"     envDefault:"1.0"`
+	DuelNewFilmDuelThreshold int16   `env:"DUEL_NEW_FILM_THRESHOLD" envDefault:"10"`
 
 	AESKey []byte
 }
@@ -50,7 +54,14 @@ func Load() *Config {
 		panic(err)
 	}
 	if cfg.DuelPopularityWeight < 0 {
-		panic(fmt.Errorf("Failed to load .env. POPULARITY_WEIGHT must be >= 0"))
+		panic(fmt.Errorf("Failed to load .env. DUEL_POPULARITY_WEIGHT must be >= 0"))
 	}
+	if cfg.MinCandidates <= 0 || cfg.MaxCandidates < cfg.MinCandidates {
+		panic(fmt.Errorf(
+			"invalid duel config: MINIMUM_CANDIDATES (%d) must be > 0 and <= MAXIMUM_CANDIDATES (%d)",
+			cfg.MinCandidates, cfg.MaxCandidates,
+		))
+	}
+
 	return &cfg
 }
