@@ -1,0 +1,87 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    name: Format, vet & generated code
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+
+      - name: gofmt
+        run: |
+          unformatted=$(gofmt -l .)
+          if [ -n "$unformatted" ]; then
+            echo "files need gofmt:"
+            echo "$unformatted"
+            exit 1
+          fi
+
+      - name: go vet
+        run: go vet ./...
+
+      - name: go build
+        run: go build ./...
+
+      - uses: sqlc-dev/setup-sqlc@v4
+        with:
+          sqlc-version: "1.31.1"
+
+      - name: sqlc generated code is up to date
+        run: sqlc diff
+
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    services:
+      # migrations use uuidv7(), which needs Postgres 18+
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: filmmash_db_test
+        ports:
+          # .env.test points goose and the tests at localhost:5440
+          - 5440:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d filmmash_db_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+
+      - name: Install goose
+        run: |
+          mkdir -p "$HOME/.local/bin"
+          curl -fsSL -o "$HOME/.local/bin/goose" \
+            https://github.com/pressly/goose/releases/download/v3.27.2/goose_linux_x86_64
+          chmod +x "$HOME/.local/bin/goose"
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Run migrations
+        run: make migrate-test-db
+
+      - name: go test
+        run: go test -race ./...
