@@ -1,11 +1,15 @@
 {{ define "filmListItem" }}
-<a class="film-list-item" href="/ui/film/{{ .Id }}"
-    hx-get="/ui/film/{{ .Id }}" hx-target="#modal" hx-swap="innerHTML">
-    <img src="https://image.tmdb.org/t/p/w92{{ .ImagePath }}" alt="{{ .Title }}">
-    <div class="film-list-item-info">
-        <h2>{{ .Title }} <span class="film-year">({{ .Year }})</span></h2>
-        <p class="film-director">{{ .Director.Name }}</p>
-        <span class="film-rating">{{ printf "%.2f" .Rating }}</span>
-    </div>
-</a>
+<div class="film-list-item">
+    <a class="film-list-item-main" href="/ui/film/{{ .Id }}"
+        hx-get="/ui/film/{{ .Id }}" hx-target="#modal" hx-swap="innerHTML">
+        <img src="https://image.tmdb.org/t/p/w92{{ .ImagePath }}" alt="{{ .Title }}">
+        <div class="film-list-item-info">
+            <h2>{{ .Title }} <span class="film-year">({{ .Year }})</span></h2>
+            <p class="film-director">{{ .Director.Name }}</p>
+            <span class="film-rating">{{ printf "%.2f" .Rating }}</span>
+        </div>
+    </a>
+    <a class="duel-cta film-list-duel" href="/ui/duel/from/{{ .Id }}"
+        aria-label="Duel {{ .Title }}" title="Duel this film">&#9876;</a>
+</div>
 {{ end }}

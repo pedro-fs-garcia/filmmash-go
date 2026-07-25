@@ -106,10 +106,10 @@ func DrawFromCandidates(candidates []Candidate, weight func(Candidate) float64) 
 	return candidates[len(candidates)-1].Id, true
 }
 
-func (s *Service) DuelFromWinner(ctx context.Context, winnerId int32) (Duel, error) {
+func (s *Service) DuelFromFilm(ctx context.Context, filmId int32) (Duel, error) {
 	var duel Duel
 	err := s.txManager.ExecTx(ctx, func(txCtx context.Context) error {
-		candidates, err := s.repo.FindCandidates(txCtx, winnerId, s.cfg.MinCandidates, s.cfg.MaxCandidates, float64(s.cfg.RatingWindow))
+		candidates, err := s.repo.FindCandidates(txCtx, filmId, s.cfg.MinCandidates, s.cfg.MaxCandidates, float64(s.cfg.RatingWindow))
 		if err != nil {
 			return err
 		}
@@ -118,7 +118,7 @@ func (s *Service) DuelFromWinner(ctx context.Context, winnerId int32) (Duel, err
 		if !ok {
 			return ErrNoCandidates
 		}
-		duel, err = s.repo.CreateDuel(txCtx, winnerId, fid)
+		duel, err = s.repo.CreateDuel(txCtx, filmId, fid)
 		if err != nil {
 			return err
 		}

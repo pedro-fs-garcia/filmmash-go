@@ -89,5 +89,5 @@ func (uc *RegisterVoteUC) RegisterVote(ctx context.Context, duelId uuid.UUID, wi
 }
 
 func (uc *RegisterVoteUC) NewDuelFromWinner(ctx context.Context, winnerId int) (duel.Duel, error) {
-	return uc.duelService.DuelFromWinner(ctx, int32(winnerId))
+	return uc.duelService.DuelFromFilm(ctx, int32(winnerId))
 }

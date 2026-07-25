@@ -60,6 +60,7 @@ func NewRouter(
 				"/duel/{duel_id}/result",
 				authService.SessionMiddleware(voteHandler.DuelResultHandler),
 			)
+			r.Get("/duel/from/{film_id}", duelHandler.DuelFromFilm)
 		})
 
 		r.Route("/admin", func(r chi.Router) {
