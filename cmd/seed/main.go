@@ -87,7 +87,9 @@ func SaveMovies(ctx context.Context, pool *pgxpool.Pool, movies []tmdb.Movie) in
 
 	result := pool.SendBatch(ctx, batch)
 
-	defer result.Close()
+	defer func() {
+		_ = result.Close()
+	}()
 
 	total := 0
 	for range movies {

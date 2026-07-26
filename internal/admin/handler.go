@@ -85,7 +85,7 @@ func (h *Handler) ListUsersPaginatedHandler(w http.ResponseWriter, r *http.Reque
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(http.StatusOK)
-	buf.WriteTo(w)
+	_, _ = buf.WriteTo(w)
 }
 
 func (h *Handler) SearchFilmOnTmdbHandler(w http.ResponseWriter, r *http.Request) {
@@ -135,7 +135,7 @@ func (h *Handler) SearchFilmOnTmdbHandler(w http.ResponseWriter, r *http.Request
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(http.StatusOK)
-	buf.WriteTo(w)
+	_, _ = buf.WriteTo(w)
 }
 
 func (h *Handler) AddTmdbFilmHandler(w http.ResponseWriter, r *http.Request) {
@@ -201,5 +201,5 @@ func (h *Handler) AddTmdbFilmHandler(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(http.StatusOK)
-	buf.WriteTo(w)
+	_, _ = buf.WriteTo(w)
 }

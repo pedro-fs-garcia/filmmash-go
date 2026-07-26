@@ -45,7 +45,7 @@ func TestFindCandidates(t *testing.T) {
 		if err != nil {
 			t.Fatalf("begin: %v", err)
 		}
-		t.Cleanup(func() { tx.Rollback(ctx) })
+		t.Cleanup(func() { _ = tx.Rollback(ctx) })
 		return database.InjectTx(ctx, tx), tx
 	}
 

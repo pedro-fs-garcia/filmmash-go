@@ -70,7 +70,9 @@ func TestRepository(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer tx.Rollback(ctx)
+	defer func() {
+		_ = tx.Rollback(ctx)
+	}()
 
 	txCtx := database.InjectTx(ctx, tx)
 	a, b := seedFilms(t, txCtx)
@@ -104,7 +106,10 @@ func TestRepository(t *testing.T) {
 		if err != nil {
 			t.Fatalf("begin savepoint: %v", err)
 		}
-		defer ntx.Rollback(ctx)
+		defer func() {
+			_ = ntx.Rollback(ctx)
+		}()
+
 		nctx := database.InjectTx(ctx, ntx)
 
 		d := duel.Duel{
@@ -126,7 +131,9 @@ func TestRepository(t *testing.T) {
 		if err != nil {
 			t.Fatalf("begin savepoint: '%v'", err)
 		}
-		defer ntx.Rollback(ctx)
+		defer func() {
+			_ = ntx.Rollback(ctx)
+		}()
 		nctx := database.InjectTx(ctx, ntx)
 
 		d := testDuel
@@ -155,7 +162,9 @@ func TestRepository(t *testing.T) {
 		if err != nil {
 			t.Fatalf("begin savepoint: %v", err)
 		}
-		defer ntx.Rollback(ctx)
+		defer func() {
+			_ = ntx.Rollback(ctx)
+		}()
 		nctx := database.InjectTx(ctx, ntx)
 
 		d := duel.Duel{FilmA: &a, FilmB: &b}
@@ -207,7 +216,9 @@ func TestRepository(t *testing.T) {
 		if err != nil {
 			t.Fatalf("begin savepoint: %v", err)
 		}
-		defer ntx.Rollback(ctx)
+		defer func() {
+			_ = ntx.Rollback(ctx)
+		}()
 		nctx := database.InjectTx(ctx, ntx)
 
 		d, err := repo.ComposeDuel(nctx, a.Id, testPopularityWeight, testRatingWindow)
@@ -230,7 +241,10 @@ func TestRepository(t *testing.T) {
 		if err != nil {
 			t.Fatalf("begin: %v", err)
 		}
-		defer itx.Rollback(ctx)
+		defer func() {
+			_ = itx.Rollback(ctx)
+		}()
+
 		ictx := database.InjectTx(ctx, itx)
 
 		dir := film.Director{Id: 601, Name: "Window director"}
@@ -266,7 +280,10 @@ func TestRepository(t *testing.T) {
 		if err != nil {
 			t.Fatalf("begin: %v", err)
 		}
-		defer itx.Rollback(ctx)
+		defer func() {
+			_ = itx.Rollback(ctx)
+		}()
+
 		ictx := database.InjectTx(ctx, itx)
 
 		dir := film.Director{Id: 602, Name: "Outlier director"}
@@ -293,7 +310,10 @@ func TestRepository(t *testing.T) {
 		if err != nil {
 			t.Fatalf("begin: %v", err)
 		}
-		defer itx.Rollback(ctx)
+		defer func() {
+			_ = itx.Rollback(ctx)
+		}()
+
 		ictx := database.InjectTx(ctx, itx)
 
 		lone := film.Film{
@@ -321,7 +341,9 @@ func TestRepository(t *testing.T) {
 		if err != nil {
 			t.Fatalf("begin savepoint: %v", err)
 		}
-		defer ntx.Rollback(ctx)
+		defer func() {
+			_ = ntx.Rollback(ctx)
+		}()
 		nctx := database.InjectTx(ctx, ntx)
 
 		before, err := repo.CountPending(nctx)

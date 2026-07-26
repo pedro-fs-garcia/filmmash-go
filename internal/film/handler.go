@@ -76,7 +76,7 @@ func (h *Handler) FilmHandler(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(http.StatusOK)
-	buf.WriteTo(w)
+	_, _ = buf.WriteTo(w)
 }
 
 func (h *Handler) FilmsListHandler(w http.ResponseWriter, r *http.Request) {
@@ -85,7 +85,13 @@ func (h *Handler) FilmsListHandler(w http.ResponseWriter, r *http.Request) {
 	log := h.logger.With(slog.String("method", "FilmsListHandler"), slog.String("request_id", reqId))
 
 	lastSeendId, err := strconv.Atoi(r.FormValue("last_seen_id"))
+	if err != nil {
+		http.Error(w, "invalid value for last_seen_id", http.StatusBadRequest)
+	}
 	LastSeenRating, err := strconv.ParseFloat(r.FormValue("last_seen_rating"), 64)
+	if err != nil {
+		http.Error(w, "invalid value for last_seen_rating", http.StatusBadRequest)
+	}
 	size, err := strconv.Atoi(r.FormValue("size"))
 	if err != nil {
 		http.Error(w, "invalid value for list size", http.StatusBadRequest)
@@ -123,7 +129,7 @@ func (h *Handler) FilmsListHandler(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(http.StatusOK)
-	buf.WriteTo(w)
+	_, _ = buf.WriteTo(w)
 }
 
 func (h *Handler) SearchFilmsHandler(w http.ResponseWriter, r *http.Request) {
@@ -153,5 +159,5 @@ func (h *Handler) SearchFilmsHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(http.StatusOK)
-	buf.WriteTo(w)
+	_, _ = buf.WriteTo(w)
 }

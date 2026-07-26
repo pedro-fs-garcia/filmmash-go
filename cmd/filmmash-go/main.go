@@ -38,6 +38,7 @@ func run() error {
 			Level:     slog.LevelDebug,
 		},
 	))
+	slog.SetDefault(logger)
 
 	pool, err := database.Pool(ctx, dsn)
 	if err != nil {

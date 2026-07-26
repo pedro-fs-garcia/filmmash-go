@@ -110,7 +110,9 @@ func TestRepository(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer tx.Rollback(ctx)
+	defer func() {
+		_ = tx.Rollback(ctx)
+	}()
 
 	txCtx := database.InjectTx(ctx, tx)
 
@@ -206,7 +208,7 @@ func TestRepository(t *testing.T) {
 		if err != nil {
 			t.Fatalf("begin savepoint: %v", err)
 		}
-		defer ntx.Rollback(ctx)
+		defer func() { _ = ntx.Rollback(ctx) }()
 		nctx := database.InjectTx(ctx, ntx)
 
 		first := newSessionDB(alice.ID, "token-hash-dup")
@@ -229,7 +231,7 @@ func TestRepository(t *testing.T) {
 		if err != nil {
 			t.Fatalf("begin savepoint: %v", err)
 		}
-		defer ntx.Rollback(ctx)
+		defer func() { _ = ntx.Rollback(ctx) }()
 		nctx := database.InjectTx(ctx, ntx)
 
 		s := newSessionDB(uuid.New(), "token-hash-orphan")

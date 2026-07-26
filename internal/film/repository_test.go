@@ -50,7 +50,9 @@ func TestRepository(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer tx.Rollback(ctx)
+	defer func() {
+		_ = tx.Rollback(ctx)
+	}()
 
 	txCtx := database.InjectTx(ctx, tx)
 
@@ -75,7 +77,9 @@ func TestRepository(t *testing.T) {
 		if err != nil {
 			t.Fatalf("begin savepoint: %v", err)
 		}
-		defer ntx.Rollback(ctx)
+		defer func() {
+			_ = ntx.Rollback(ctx)
+		}()
 		nctx := database.InjectTx(ctx, ntx)
 
 		d2 := testDirector
@@ -101,7 +105,10 @@ func TestRepository(t *testing.T) {
 			if err != nil {
 				t.Fatalf("NewTx: %v", err)
 			}
-			defer itx.Rollback(ctx)
+			defer func() {
+				_ = itx.Rollback(ctx)
+			}()
+
 			txCtx := database.InjectTx(ctx, itx)
 			err = repo.InsertDirector(txCtx, &d)
 			if err == nil {
@@ -146,7 +153,9 @@ func TestRepository(t *testing.T) {
 		if err != nil {
 			t.Fatalf("begin save point: %v", err)
 		}
-		defer ntx.Rollback(ctx)
+		defer func() {
+			_ = ntx.Rollback(ctx)
+		}()
 		nctx := database.InjectTx(ctx, ntx)
 
 		dup := testFilm
@@ -165,7 +174,9 @@ func TestRepository(t *testing.T) {
 		if err != nil {
 			t.Fatalf("begin save point: %v", err)
 		}
-		defer ntx.Rollback(ctx)
+		defer func() {
+			_ = ntx.Rollback(ctx)
+		}()
 		nctx := database.InjectTx(ctx, ntx)
 
 		f := film.Film{
@@ -196,7 +207,10 @@ func TestRepository(t *testing.T) {
 				if err != nil {
 					t.Fatalf("NewTx: %v", err)
 				}
-				defer itx.Rollback(ctx)
+				defer func() {
+					_ = itx.Rollback(ctx)
+				}()
+
 				txCtx := database.InjectTx(ctx, itx)
 				err = repo.InsertFilm(txCtx, &f)
 				if err == nil {
@@ -322,7 +336,10 @@ func TestRepository(t *testing.T) {
 		if err != nil {
 			t.Fatalf("begin savepoint: %v", err)
 		}
-		defer stx.Rollback(ctx)
+		defer func() {
+			_ = stx.Rollback(ctx)
+		}()
+
 		sctx := database.InjectTx(ctx, stx)
 
 		updates := []*film.FilmRating{
@@ -354,7 +371,10 @@ func TestRepository(t *testing.T) {
 		if err != nil {
 			t.Fatalf("begin savepoint: %v", err)
 		}
-		defer stx.Rollback(ctx)
+		defer func() {
+			_ = stx.Rollback(ctx)
+		}()
+
 		sctx := database.InjectTx(ctx, stx)
 
 		err = repo.UpdateRatings(sctx, []*film.FilmRating{{Id: 999999, Rating: 1000}})

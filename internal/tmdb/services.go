@@ -62,9 +62,6 @@ func (c *Client) GetDirector(movieId int) (*Director, error) {
 }
 
 func (c *Client) GetTopRated(page int) ([]Movie, error) {
-	var total int
-	movies := make([]Movie, 0)
-
 	path := fmt.Sprintf("/movie/top_rated?language=en-US&page=%d", page)
 	req, err := c.newRequest("GET", path, nil)
 	if err != nil {
@@ -78,10 +75,7 @@ func (c *Client) GetTopRated(page int) ([]Movie, error) {
 		return nil, err
 	}
 
-	movies = append(movies, result.Results...)
-
-	total += len(result.Results)
-	page++
+	movies := result.Results
 
 	for i := range movies {
 		dir, _ := c.GetDirector(movies[i].Id)

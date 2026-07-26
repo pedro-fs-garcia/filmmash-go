@@ -3,13 +3,18 @@ package database
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"log"
+	"log/slog"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 	_ "github.com/jackc/pgx/v5/stdlib"
 )
+
+const rollbackTimeout = 5 * time.Second
 
 type DBConn interface {
 	Query(ctx context.Context, query string, args ...any) (pgx.Rows, error)
@@ -40,6 +45,18 @@ func NewTxManager(pool *pgxpool.Pool) *TxManager {
 	return &TxManager{pool: pool}
 }
 
+func rollback(ctx context.Context, tx pgx.Tx, method string) {
+	rbCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), rollbackTimeout)
+	defer cancel()
+
+	if rbErr := tx.Rollback(rbCtx); rbErr != nil && !errors.Is(rbErr, pgx.ErrTxClosed) {
+		slog.ErrorContext(rbCtx, "failed to rollback transaction",
+			slog.String("method", method),
+			slog.String("error", rbErr.Error()),
+		)
+	}
+}
+
 func (tm *TxManager) ExecTx(ctx context.Context, fn func(ctx context.Context) error) (err error) {
 	tx, err := tm.pool.Begin(ctx)
 	if err != nil {
@@ -48,10 +65,10 @@ func (tm *TxManager) ExecTx(ctx context.Context, fn func(ctx context.Context) er
 
 	defer func() {
 		if p := recover(); p != nil {
-			tx.Rollback(ctx)
+			rollback(ctx, tx, "ExecTx")
 			panic(p)
 		} else if err != nil {
-			tx.Rollback(ctx)
+			rollback(ctx, tx, "ExecTx")
 		} else {
 			err = tx.Commit(ctx)
 		}
@@ -74,7 +91,7 @@ func WithTx(ctx context.Context, pool *pgxpool.Pool, fn func(tx pgx.Tx) error) e
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback(ctx)
+	defer rollback(ctx, tx, "WithTx")
 
 	if err = fn(tx); err != nil {
 		return err

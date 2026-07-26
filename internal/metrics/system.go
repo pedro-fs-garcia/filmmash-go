@@ -60,7 +60,9 @@ func readMemInfo() (total, available float64, ok bool) {
 	if err != nil {
 		return 0, 0, false
 	}
-	defer f.Close()
+	defer func() {
+		_ = f.Close()
+	}()
 
 	var gotTotal, gotAvail bool
 	sc := bufio.NewScanner(f)
