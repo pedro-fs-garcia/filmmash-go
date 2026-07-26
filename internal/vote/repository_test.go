@@ -269,7 +269,11 @@ func TestListFilmVotes(t *testing.T) {
 			t.Fatalf("got winner year %d loser year %d, want 2000 / 2001", m.Winner.Year, m.Loser.Year)
 		}
 		if m.Winner.RatingAfter != 1410.0 || m.Loser.RatingAfter != 1390.0 {
-			t.Fatalf("got winner rating %v loser rating %v, want 1410 / 1390", m.Winner.RatingAfter, m.Loser.RatingAfter)
+			t.Fatalf(
+				"got winner rating %v loser rating %v, want 1410 / 1390",
+				m.Winner.RatingAfter,
+				m.Loser.RatingAfter,
+			)
 		}
 		if m.CreatedAt.IsZero() {
 			t.Fatal("CreatedAt is zero, want a real timestamp")
@@ -414,10 +418,20 @@ func TestListUsersVotes(t *testing.T) {
 		}
 		// Unlike ListFilmVotes, this query selects the poster paths.
 		if m.Winner.ImagePath != "a.jpg" || m.Loser.ImagePath != "b.jpg" {
-			t.Fatalf("got winner image %q loser image %q, want %q / %q", m.Winner.ImagePath, m.Loser.ImagePath, "a.jpg", "b.jpg")
+			t.Fatalf(
+				"got winner image %q loser image %q, want %q / %q",
+				m.Winner.ImagePath,
+				m.Loser.ImagePath,
+				"a.jpg",
+				"b.jpg",
+			)
 		}
 		if m.Winner.RatingAfter != 1410.0 || m.Loser.RatingAfter != 1390.0 {
-			t.Fatalf("got winner rating %v loser rating %v, want 1410 / 1390", m.Winner.RatingAfter, m.Loser.RatingAfter)
+			t.Fatalf(
+				"got winner rating %v loser rating %v, want 1410 / 1390",
+				m.Winner.RatingAfter,
+				m.Loser.RatingAfter,
+			)
 		}
 		if m.CreatedAt.IsZero() {
 			t.Fatal("CreatedAt is zero, want a real timestamp")

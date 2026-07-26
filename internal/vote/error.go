@@ -2,5 +2,5 @@ package vote
 
 import "errors"
 
-var ErrDuplicateEntry = errors.New("Vote already exists")
-var ErrFilmNotInDuel = errors.New("Film does not belong to duel")
+var ErrDuplicateEntry = errors.New("vote already exists")
+var ErrFilmNotInDuel = errors.New("film does not belong to duel")

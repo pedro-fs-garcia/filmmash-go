@@ -80,7 +80,8 @@ func SaveMovies(ctx context.Context, pool *pgxpool.Pool, movies []tmdb.Movie) in
 			VALUES ($1, $2, $3, $4, $5, $6, $7) ON CONFLICT DO NOTHING
 			`
 		batch.Queue(query,
-			movie.Id, movie.Title, release_year, movie.Director.Id, movie.PosterPath, movie.Popularity, movie.VoteAverage,
+			movie.Id, movie.Title, release_year, movie.Director.Id,
+			movie.PosterPath, movie.Popularity, movie.VoteAverage,
 		)
 	}
 

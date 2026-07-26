@@ -8,11 +8,11 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 )
 
-var ErrNotFound = errors.New("Duel not found")
-var ErrDuplicateEntry = errors.New("Duel already exists")
-var ErrInvalidDuel = errors.New("Invalid duel")
-var ErrMissingData = errors.New("Missing required data")
-var ErrNotEnoughFilms = errors.New("Not enough films to create duel")
+var ErrNotFound = errors.New("duel not found")
+var ErrDuplicateEntry = errors.New("duel already exists")
+var ErrInvalidDuel = errors.New("invalid duel")
+var ErrMissingData = errors.New("missing required data")
+var ErrNotEnoughFilms = errors.New("not enough films to create duel")
 var ErrNoCandidates = fmt.Errorf("no candidates were found for duel: %w", ErrNotEnoughFilms)
 
 func parseDBError(ctxMsg string, err error) error {

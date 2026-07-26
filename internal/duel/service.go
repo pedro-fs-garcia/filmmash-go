@@ -27,7 +27,13 @@ type Service struct {
 	cfg         ServiceConfig
 }
 
-func NewService(metrics *metrics.DuelMetrics, repo *repository, txm *database.TxManager, filmService *film.Service, cfg ServiceConfig) *Service {
+func NewService(
+	metrics *metrics.DuelMetrics,
+	repo *repository,
+	txm *database.TxManager,
+	filmService *film.Service,
+	cfg ServiceConfig,
+) *Service {
 	return &Service{
 		metrics:     metrics,
 		repo:        repo,
@@ -109,7 +115,9 @@ func DrawFromCandidates(candidates []Candidate, weight func(Candidate) float64) 
 func (s *Service) DuelFromFilm(ctx context.Context, filmId int32) (Duel, error) {
 	var duel Duel
 	err := s.txManager.ExecTx(ctx, func(txCtx context.Context) error {
-		candidates, err := s.repo.FindCandidates(txCtx, filmId, s.cfg.MinCandidates, s.cfg.MaxCandidates, float64(s.cfg.RatingWindow))
+		candidates, err := s.repo.FindCandidates(
+			txCtx, filmId, s.cfg.MinCandidates, s.cfg.MaxCandidates, float64(s.cfg.RatingWindow),
+		)
 		if err != nil {
 			return err
 		}

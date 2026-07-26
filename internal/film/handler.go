@@ -87,6 +87,10 @@ func (h *Handler) FilmsListHandler(w http.ResponseWriter, r *http.Request) {
 	lastSeendId, err := strconv.Atoi(r.FormValue("last_seen_id"))
 	LastSeenRating, err := strconv.ParseFloat(r.FormValue("last_seen_rating"), 64)
 	size, err := strconv.Atoi(r.FormValue("size"))
+	if err != nil {
+		http.Error(w, "invalid value for list size", http.StatusBadRequest)
+		return
+	}
 	if lastSeendId == 0 && LastSeenRating == 0.0 && size == 0 {
 		LastSeenRating = 9999.0
 		size = 50

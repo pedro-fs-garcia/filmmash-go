@@ -235,8 +235,13 @@ func TestRepository(t *testing.T) {
 
 		dir := film.Director{Id: 601, Name: "Window director"}
 		winner := film.Film{Id: 3101, Title: "Winner", Year: 2010, Director: dir, ImagePath: "w.jpg", Rating: 1400}
-		near := film.Film{Id: 3102, Title: "Near", Year: 2011, Director: dir, ImagePath: "n.jpg", Rating: 1400 + float64(testRatingWindow) - 50}
-		far := film.Film{Id: 3103, Title: "Far", Year: 2012, Director: dir, ImagePath: "f.jpg", Rating: 1400 + float64(testRatingWindow) + 5000}
+		near := film.Film{
+			Id: 3102, Title: "Near", Year: 2011, Director: dir, ImagePath: "n.jpg",
+			Rating: 1400 + float64(testRatingWindow) - 50,
+		}
+		far := film.Film{Id: 3103, Title: "Far", Year: 2012, Director: dir, ImagePath: "f.jpg",
+			Rating: 1400 + float64(testRatingWindow) + 5000,
+		}
 		filmRepo := film.NewRepository(testPool)
 		for _, f := range []*film.Film{&winner, &near, &far} {
 			if err := filmRepo.InsertFilm(ictx, f); err != nil {

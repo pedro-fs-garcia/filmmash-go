@@ -54,7 +54,7 @@ func Load() *Config {
 		panic(err)
 	}
 	if cfg.DuelPopularityWeight < 0 {
-		panic(fmt.Errorf("Failed to load .env. DUEL_POPULARITY_WEIGHT must be >= 0"))
+		panic(fmt.Errorf("failed to load .env. DUEL_POPULARITY_WEIGHT must be >= 0"))
 	}
 	if cfg.MinCandidates <= 0 || cfg.MaxCandidates < cfg.MinCandidates {
 		panic(fmt.Errorf(

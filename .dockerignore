@@ -4,5 +4,6 @@
 build/
 
 logs/
+docs/
 
 .idea/

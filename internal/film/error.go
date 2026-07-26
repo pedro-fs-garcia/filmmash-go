@@ -8,11 +8,11 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 )
 
-var ErrNotFound = errors.New("Resource not found")
-var ErrDuplicateEntry = errors.New("Register already exists")
-var ErrInvalidInput = errors.New("Invalid input value")
-var ErrInvalidRating = errors.New("Invalid film rating value")
-var ErrMissingData = errors.New("Missing required field")
+var ErrNotFound = errors.New("resource not found")
+var ErrDuplicateEntry = errors.New("register already exists")
+var ErrInvalidInput = errors.New("invalid input value")
+var ErrInvalidRating = errors.New("invalid film rating value")
+var ErrMissingData = errors.New("missing required field")
 
 func parseDBError(ctxMsg string, err error) error {
 	if err == nil {

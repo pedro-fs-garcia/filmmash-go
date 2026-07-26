@@ -110,7 +110,12 @@ func (r *repository) SelectRandomFilms(ctx context.Context) ([2]film.Film, error
 	return films, nil
 }
 
-func (r *repository) FindCandidates(ctx context.Context, id int32, minCandidates, maxCandidates int16, ratingWindow float64) ([]Candidate, error) {
+func (r *repository) FindCandidates(
+	ctx context.Context,
+	id int32, minCandidates,
+	maxCandidates int16,
+	ratingWindow float64,
+) ([]Candidate, error) {
 	rows, err := r.queries(ctx).FindCandidates(ctx, dbgen.FindCandidatesParams{
 		WinnerID:      id,
 		MinCandidates: int32(minCandidates),
@@ -180,7 +185,12 @@ func duelFromRow(row dbgen.CreateDuelRow) Duel {
 	}
 }
 
-func (r *repository) ComposeDuel(ctx context.Context, winnerId int, popularityWeight float64, ratingWindow int32) (Duel, error) {
+func (r *repository) ComposeDuel(
+	ctx context.Context,
+	winnerId int,
+	popularityWeight float64,
+	ratingWindow int32,
+) (Duel, error) {
 	row, err := r.queries(ctx).ComposeDuel(ctx, dbgen.ComposeDuelParams{
 		WinnerID:         int32(winnerId),
 		RatingWindow:     float64(ratingWindow),

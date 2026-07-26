@@ -27,6 +27,10 @@ func loadAESKey() ([]byte, error) {
 		}
 		return key, nil
 	}
-	slog.Warn("AES_KEY not set; using an ephemeral key — in-flight logins will not survive restarts or work across replicas. Set AES_KEY to a base64-encoded 32-byte key (e.g. `openssl rand -base64 32`)")
+	slog.Warn(
+		`AES_KEY not set; using an ephemeral key.
+		In-flight logins will not survive restarts or work across replicas.
+		Set AES_KEY to a base64-encoded 32-byte key (e.g. 'openssl rand -base64 32')`,
+	)
 	return GenerateAES256Key()
 }

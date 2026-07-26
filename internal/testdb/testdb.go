@@ -46,7 +46,7 @@ func New(ctx context.Context) (*pgxpool.Pool, func(), error) {
 	envPath := filepath.Join(root, ".env.test")
 	if _, statErr := os.Stat(envPath); statErr == nil {
 		if err := godotenv.Overload(envPath); err != nil {
-			return nil, nil, fmt.Errorf("Error loading .env.test: %w", err)
+			return nil, nil, fmt.Errorf("error loading .env.test: %w", err)
 		}
 	} else if os.Getenv("DATABASE_URL") == "" {
 		return nil, nil, fmt.Errorf(".env.test not found at %s and DATABASE_URL not set", envPath)

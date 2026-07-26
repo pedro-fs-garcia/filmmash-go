@@ -60,7 +60,10 @@ func FilmKFromDuelCount(duelcount int32) int16 {
 	return 20
 }
 
-func CalculateRatings(winnerRating, loserRating float64, winnerK, loserK int16) (newWinnerRating, newLoserRating float64) {
+func CalculateRatings(
+	winnerRating, loserRating float64,
+	winnerK, loserK int16,
+) (newWinnerRating, newLoserRating float64) {
 	Ea := 1 / (1 + math.Pow(10, (loserRating-winnerRating)/400))
 	Eb := 1 / (1 + math.Pow(10, (winnerRating-loserRating)/400))
 	newWinnerRating = winnerRating + float64(winnerK)*(1-Ea)

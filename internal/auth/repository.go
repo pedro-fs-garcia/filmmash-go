@@ -86,7 +86,7 @@ func (r *repository) DeleteByTokenHash(ctx context.Context, tokenHash []byte) er
 		return database.ParseDBError("deleting sesison by token_hash", err)
 	}
 	if affected == 0 {
-		return fmt.Errorf("No rows affected %w", ErrSessionNotFound)
+		return fmt.Errorf("no rows affected %w", ErrSessionNotFound)
 	}
 	return nil
 }

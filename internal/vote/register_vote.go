@@ -21,7 +21,13 @@ type RegisterVoteUC struct {
 	duelService *duel.Service
 }
 
-func NewRegisterVoteUC(metrics *metrics.VoteMetrics, repo *repository, txm *database.TxManager, filmService *film.Service, duelService *duel.Service) *RegisterVoteUC {
+func NewRegisterVoteUC(
+	metrics *metrics.VoteMetrics,
+	repo *repository,
+	txm *database.TxManager,
+	filmService *film.Service,
+	duelService *duel.Service,
+) *RegisterVoteUC {
 	return &RegisterVoteUC{
 		metrics:     metrics,
 		voteRepo:    repo,
@@ -52,7 +58,10 @@ func (uc *RegisterVoteUC) RegisterVote(ctx context.Context, duelId uuid.UUID, wi
 		case ratings[1].Id:
 			winner, loser = ratings[1], ratings[0]
 		default:
-			return fmt.Errorf("[vote.RegisterVoteUC.RegisterVote] film(id: %v) does not belong to duel(id: %v): %w", winnerId, duelId, ErrFilmNotInDuel)
+			return fmt.Errorf(
+				"[vote.RegisterVoteUC.RegisterVote] film(id: %v) does not belong to duel(id: %v): %w",
+				winnerId, duelId, ErrFilmNotInDuel,
+			)
 		}
 
 		newWinnerRating, newLoserRating := film.CalculateRatings(

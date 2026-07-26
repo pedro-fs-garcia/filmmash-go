@@ -17,10 +17,23 @@ type hostCollector struct {
 }
 
 func NewHostCollector() prometheus.Collector {
+	mt := prometheus.NewDesc(
+		"system_memory_total_bytes",
+		"Total system memory in bytes (from /proc/meminfo).",
+		nil, nil)
+	ma := prometheus.NewDesc(
+		"system_memory_available_bytes",
+		"Available system memory in bytes (from /proc/meminfo).",
+		nil, nil)
+	cpu := prometheus.NewDesc(
+		"system_cpu_cores",
+		"Number of logical CPUs available to the system.",
+		nil, nil)
+
 	return &hostCollector{
-		memTotal:     prometheus.NewDesc("system_memory_total_bytes", "Total system memory in bytes (from /proc/meminfo).", nil, nil),
-		memAvailable: prometheus.NewDesc("system_memory_available_bytes", "Available system memory in bytes (from /proc/meminfo).", nil, nil),
-		cpuCores:     prometheus.NewDesc("system_cpu_cores", "Number of logical CPUs available to the system.", nil, nil),
+		memTotal:     mt,
+		memAvailable: ma,
+		cpuCores:     cpu,
 	}
 }
 
