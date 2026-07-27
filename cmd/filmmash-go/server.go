@@ -57,7 +57,7 @@ func initRouter(
 	tmdbClient := tmdb.NewClient("https://api.themoviedb.org/3", cfg.TmdbApitoken)
 
 	filmRepo := film.NewRepository(pool)
-	filmService := film.NewService(filmRepo, txm)
+	filmService := film.NewService(logger, filmRepo, txm, tmdbClient)
 	filmHandler := film.NewHandler(logger, filmService)
 
 	duelServiceCfg := duel.ServiceConfig{
@@ -124,6 +124,9 @@ func initRouter(
 	router.Handle("/metrics", promhttp.HandlerFor(m.Registry, promhttp.HandlerOpts{}))
 
 	go authService.DeleteExpiredSessionsJob(ctx, 5*time.Minute)
+
+	go filmService.InsertFilmsJob(ctx, 24*time.Hour, tmdbClient.GetPopulars)
+	go filmService.InsertFilmsJob(ctx, 24*7*time.Hour, tmdbClient.GetTopRated)
 
 	return router, nil
 }

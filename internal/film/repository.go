@@ -62,6 +62,42 @@ func (r *repository) InsertFilm(ctx context.Context, f *Film) error {
 	return nil
 }
 
+func (r *repository) InsertFilmBatch(ctx context.Context, films []Film) (int32, error) {
+	if len(films) == 0 {
+		return 0, nil
+	}
+	args := make([]dbgen.InsertFilmBatchParams, len(films))
+	for i, f := range films {
+		if f.Rating == 0 {
+			f.Rating = StdRating
+		}
+		args[i] = dbgen.InsertFilmBatchParams{
+			ID:           int32(f.Id),
+			Title:        f.Title,
+			ReleaseYear:  int16(f.Year),
+			ImagePath:    &f.ImagePath,
+			Rating:       f.Rating,
+			Popularity:   f.Popularity,
+			VoteAverage:  f.VoteAverage,
+			DirectorID:   int32(f.Director.Id),
+			DirectorName: f.Director.Name,
+		}
+	}
+	var inserted int32 = 0
+	var err error
+	res := r.queries(ctx).InsertFilmBatch(ctx, args)
+	res.QueryRow(func(t int, id int32, ierr error) {
+		if ierr != nil {
+			if !errors.Is(ierr, pgx.ErrNoRows) && err == nil {
+				err = parseDBError("inserting film batch", ierr)
+			}
+			return
+		}
+		inserted += 1
+	})
+	return inserted, err
+}
+
 func (r *repository) InsertDirector(ctx context.Context, d *Director) error {
 	id, err := r.queries(ctx).InsertDirector(ctx, dbgen.InsertDirectorParams{
 		ID:   int32(d.Id),

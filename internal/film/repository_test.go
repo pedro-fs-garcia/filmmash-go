@@ -6,6 +6,7 @@ import (
 	"filmmash/internal/database"
 	"filmmash/internal/film"
 	"filmmash/internal/testdb"
+	"fmt"
 	"log"
 	"os"
 	"strings"
@@ -39,6 +40,149 @@ func TestMain(m *testing.M) {
 	code := m.Run()
 	cleanup()
 	os.Exit(code)
+}
+
+func TestInsertBatch(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	repo := film.NewRepository(testPool)
+
+	tx, err := testPool.Begin(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		_ = tx.Rollback(ctx)
+	}()
+
+	txCtx := database.InjectTx(ctx, tx)
+
+	var films []film.Film
+	for i := 5000; i <= 5010; i++ {
+		d := film.Director{
+			Id:   i,
+			Name: fmt.Sprintf("Test Director%d", i),
+		}
+		f := film.Film{
+			Id:        i,
+			Title:     fmt.Sprintf("Test Film%d", i),
+			Year:      2026,
+			ImagePath: "test_image_path.jpg",
+			Director:  d,
+		}
+		films = append(films, f)
+	}
+
+	t.Run("InsertFilmBatch", func(t *testing.T) {
+		total, err := repo.InsertFilmBatch(txCtx, films)
+		if err != nil {
+			t.Fatalf("inserting film batch: %v", err)
+		}
+		if total != int32(len(films)) {
+			t.Fatalf("total = %d, want %d", total, len(films))
+		}
+	})
+
+	t.Run("InsertFilmBatch duplicates are not inserted", func(t *testing.T) {
+		total, err := repo.InsertFilmBatch(txCtx, films)
+		if err != nil {
+			t.Fatalf("inserting film batch: %v", err)
+		}
+		if total != 0 {
+			t.Fatalf("total = %d, want 0 (all duplicates)", total)
+		}
+	})
+
+	t.Run("InsertFilmBatch mixed new and duplicate in same call", func(t *testing.T) {
+		newFilms := []film.Film{
+			{
+				Id:        5100,
+				Title:     "New film A",
+				Year:      2026,
+				ImagePath: "new_a.jpg",
+				Director:  film.Director{Id: 5100, Name: "New Director A"},
+			},
+			{
+				Id:        5101,
+				Title:     "New film B",
+				Year:      2026,
+				ImagePath: "new_b.jpg",
+				Director:  film.Director{Id: 5101, Name: "New Director B"},
+			},
+		}
+		mixed := append(append([]film.Film{}, films[:3]...), newFilms...)
+
+		total, err := repo.InsertFilmBatch(txCtx, mixed)
+		if err != nil {
+			t.Fatalf("inserting mixed film batch: %v", err)
+		}
+		if total != int32(len(newFilms)) {
+			t.Fatalf("total = %d, want %d (only the new films)", total, len(newFilms))
+		}
+	})
+
+	t.Run("InsertFilmBatch films sharing a brand-new director", func(t *testing.T) {
+		sharedDirector := film.Director{Id: 5200, Name: "Shared New Director"}
+		shared := []film.Film{
+			{Id: 5200, Title: "Shared Director Film A", Year: 2026, Director: sharedDirector},
+			{Id: 5201, Title: "Shared Director Film B", Year: 2026, Director: sharedDirector},
+			{Id: 5202, Title: "Shared Director Film C", Year: 2026, Director: sharedDirector},
+		}
+
+		total, err := repo.InsertFilmBatch(txCtx, shared)
+		if err != nil {
+			t.Fatalf("inserting film batch: %v", err)
+		}
+		if total != int32(len(shared)) {
+			t.Fatalf("total = %d, want %d", total, len(shared))
+		}
+
+		got, err := repo.GetDirector(txCtx, sharedDirector.Id)
+		if err != nil {
+			t.Fatalf("GetDirector: %v", err)
+		}
+		if got != sharedDirector {
+			t.Fatalf("GetDirector() = %+v, want %+v", got, sharedDirector)
+		}
+
+		for _, f := range shared {
+			gotFilm, err := repo.GetFilm(txCtx, f.Id)
+			if err != nil {
+				t.Fatalf("GetFilm(%d): %v", f.Id, err)
+			}
+			if gotFilm.Director.Id != sharedDirector.Id {
+				t.Fatalf("film %d director = %d, want %d", f.Id, gotFilm.Director.Id, sharedDirector.Id)
+			}
+		}
+	})
+
+	t.Run("InsertFilmBatch invalid input surfaces as ErrInvalidInput", func(t *testing.T) {
+		itx, err := tx.Begin(ctx)
+		if err != nil {
+			t.Fatalf("begin savepoint: %v", err)
+		}
+		defer func() {
+			_ = itx.Rollback(ctx)
+		}()
+		ictx := database.InjectTx(ctx, itx)
+
+		bad := []film.Film{
+			{
+				Id:       5300,
+				Title:    "Film with invalid director name",
+				Year:     2026,
+				Director: film.Director{Id: 5300, Name: "a"},
+			},
+		}
+
+		_, err = repo.InsertFilmBatch(ictx, bad)
+		if err == nil {
+			t.Fatal("expected ErrInvalidInput, got nil")
+		}
+		if !errors.Is(err, film.ErrInvalidInput) {
+			t.Fatalf("expected ErrInvalidInput, got %v", err)
+		}
+	})
 }
 
 func TestRepository(t *testing.T) {

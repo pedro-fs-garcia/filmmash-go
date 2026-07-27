@@ -16,6 +16,85 @@ var (
 	ErrBatchAlreadyClosed = errors.New("batch already closed")
 )
 
+const insertFilmBatch = `-- name: InsertFilmBatch :batchone
+WITH new_director AS (
+    INSERT INTO directors (id, name)
+    VALUES ($8, $9)
+    ON CONFLICT DO NOTHING
+    RETURNING id AS director_id
+),
+director AS (
+    SELECT director_id FROM new_director
+    UNION ALL
+    SELECT id AS director_id FROM directors WHERE id = $8
+)
+INSERT INTO films (id, title, release_year, director_id, image_path, rating, popularity, vote_average)
+SELECT $1, $2, $3, director_id, $4, $5, $6, $7 FROM director
+ON CONFLICT DO NOTHING
+RETURNING id
+`
+
+type InsertFilmBatchBatchResults struct {
+	br     pgx.BatchResults
+	tot    int
+	closed bool
+}
+
+type InsertFilmBatchParams struct {
+	ID           int32
+	Title        string
+	ReleaseYear  int16
+	ImagePath    *string
+	Rating       float64
+	Popularity   float64
+	VoteAverage  float64
+	DirectorID   int32
+	DirectorName string
+}
+
+func (q *Queries) InsertFilmBatch(ctx context.Context, arg []InsertFilmBatchParams) *InsertFilmBatchBatchResults {
+	batch := &pgx.Batch{}
+	for _, a := range arg {
+		vals := []interface{}{
+			a.ID,
+			a.Title,
+			a.ReleaseYear,
+			a.ImagePath,
+			a.Rating,
+			a.Popularity,
+			a.VoteAverage,
+			a.DirectorID,
+			a.DirectorName,
+		}
+		batch.Queue(insertFilmBatch, vals...)
+	}
+	br := q.db.SendBatch(ctx, batch)
+	return &InsertFilmBatchBatchResults{br, len(arg), false}
+}
+
+func (b *InsertFilmBatchBatchResults) QueryRow(f func(int, int32, error)) {
+	defer b.br.Close()
+	for t := 0; t < b.tot; t++ {
+		var id int32
+		if b.closed {
+			if f != nil {
+				f(t, id, ErrBatchAlreadyClosed)
+			}
+			continue
+		}
+		row := b.br.QueryRow()
+		err := row.Scan(&id)
+		if f != nil {
+			f(t, id, err)
+		}
+	}
+}
+
+func (b *InsertFilmBatchBatchResults) Close() error {
+	b.closed = true
+	return b.br.Close()
+}
+
 const updateFilmRatings = `-- name: UpdateFilmRatings :batchone
 UPDATE films SET rating = $1 WHERE id = $2 RETURNING id
 `

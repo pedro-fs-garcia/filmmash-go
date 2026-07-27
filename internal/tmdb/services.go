@@ -8,8 +8,8 @@ import (
 	"strconv"
 )
 
-func (c *Client) GetPopulars(page int) ([]Movie, error) {
-	path := "/movie/popular?language=en-US&page=" + strconv.Itoa(page)
+func (c *Client) GetPopulars(page int16) ([]Movie, error) {
+	path := "/movie/popular?language=en-US&page=" + strconv.Itoa(int(page))
 	req, err := c.newRequest("GET", path, nil)
 	if err != nil {
 		log.Println(err)
@@ -39,12 +39,14 @@ func (c *Client) GetDirector(movieId int) (*Director, error) {
 	str := fmt.Sprintf("/movie/%d/credits", movieId)
 	req, err := c.newRequest("GET", str, nil)
 	if err != nil {
+		log.Println(err)
 		return nil, err
 	}
 
 	var result CreditsResponse
 	err = c.Do(req, &result)
 	if err != nil {
+		log.Println(err)
 		return nil, err
 	}
 
@@ -61,7 +63,7 @@ func (c *Client) GetDirector(movieId int) (*Director, error) {
 	return nil, nil
 }
 
-func (c *Client) GetTopRated(page int) ([]Movie, error) {
+func (c *Client) GetTopRated(page int16) ([]Movie, error) {
 	path := fmt.Sprintf("/movie/top_rated?language=en-US&page=%d", page)
 	req, err := c.newRequest("GET", path, nil)
 	if err != nil {
