@@ -35,7 +35,7 @@ func main() {
 	totalTop := 0
 	for page := 1; page <= 3; page++ {
 		fmt.Printf("Downloading top rated movies from TMDB, page %d\n", page)
-		movies, err := client.GetTopRated(page)
+		movies, err := client.GetTopRated(int16(page))
 		if err != nil {
 			fmt.Println(err)
 		}
@@ -48,7 +48,7 @@ func main() {
 	totalPopular := 0
 	for page := 1; page <= 3; page++ {
 		fmt.Printf("Downloading Popular movies from TMDB, page %d\n", page)
-		movies, err := client.GetPopulars(page)
+		movies, err := client.GetPopulars(int16(page))
 		if err != nil {
 			fmt.Println(err)
 		}

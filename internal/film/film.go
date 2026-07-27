@@ -1,6 +1,11 @@
 package film
 
-import "math"
+import (
+	"filmmash/internal/tmdb"
+	"math"
+	"strconv"
+	"strings"
+)
 
 type Director struct {
 	Id   int    `db:"id"`
@@ -69,4 +74,24 @@ func CalculateRatings(
 	newWinnerRating = winnerRating + float64(winnerK)*(1-Ea)
 	newLoserRating = loserRating + float64(loserK)*(0-Eb)
 	return newWinnerRating, newLoserRating
+}
+
+func TMDBMovieToFilm(m tmdb.Movie) (Film, error) {
+	year, _, _ := strings.Cut(m.ReleaseDate, "-")
+	release_year, err := strconv.Atoi(year)
+	if err != nil {
+		return Film{}, err
+	}
+	return Film{
+		Id:    m.Id,
+		Title: m.Title,
+		Year:  release_year,
+		Director: Director{
+			Id:   m.Director.Id,
+			Name: m.Director.Name,
+		},
+		ImagePath:   m.PosterPath,
+		Popularity:  float64(m.Popularity),
+		VoteAverage: float64(m.VoteAverage),
+	}, nil
 }

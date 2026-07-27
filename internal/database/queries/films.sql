@@ -14,6 +14,23 @@ INSERT INTO films (id, title, release_year, director_id, image_path, rating)
 SELECT sqlc.arg(id), sqlc.arg(title), sqlc.arg(release_year), director_id, sqlc.arg(image_path), sqlc.arg(rating) FROM director
 RETURNING id;
 
+-- name: InsertFilmBatch :batchone
+WITH new_director AS (
+    INSERT INTO directors (id, name)
+    VALUES (sqlc.arg(director_id), sqlc.arg(director_name))
+    ON CONFLICT DO NOTHING
+    RETURNING id AS director_id
+),
+director AS (
+    SELECT director_id FROM new_director
+    UNION ALL
+    SELECT id AS director_id FROM directors WHERE id = sqlc.arg(director_id)
+)
+INSERT INTO films (id, title, release_year, director_id, image_path, rating, popularity, vote_average)
+SELECT sqlc.arg(id), sqlc.arg(title), sqlc.arg(release_year), director_id, sqlc.arg(image_path), sqlc.arg(rating), sqlc.arg(popularity), sqlc.arg(vote_average) FROM director
+ON CONFLICT DO NOTHING
+RETURNING id;
+
 -- name: InsertDirector :one
 INSERT INTO directors (id, name)
 VALUES ($1, $2)
