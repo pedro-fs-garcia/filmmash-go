@@ -2,6 +2,9 @@
 # Leave COMPOSE_PROFILES unset in the VPS .env so the local monitoring stack stays off; 
 # Alloy ships telemetry to Grafana Cloud instead.
 services:
+  app:
+    image: ghcr.io/pedro-fs-garcia/filmmash-go:${IMAGE_TAG:-latest}
+
   alloy:
     env_file:
       - .env

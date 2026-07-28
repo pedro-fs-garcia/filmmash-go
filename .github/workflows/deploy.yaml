@@ -1,0 +1,92 @@
+name: Deploy
+
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+    branches: ["main"]
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: pedro-fs-garcia/filmmash-go
+
+jobs:
+  build-and-push:
+    if: github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      sha_short: ${{ steps.vars.outputs.sha_short }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+
+      - name: Set image tag
+        id: vars
+        run: echo "sha_short=${SHA::7}" >> "$GITHUB_OUTPUT"
+        env:
+          SHA: ${{ github.event.workflow_run.head_sha }}
+
+      - name: Log in to the Container registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: Dockerfile.app
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:sha-${{ steps.vars.outputs.sha_short }}
+
+  deploy:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+
+      - name: Copy compose files to Droplet
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.DROPLET_HOST }}
+          username: ${{ secrets.SSH_USERNAME }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          target: /opt/filmmash
+          source: docker-compose.yaml,docker-compose.prod.yaml,monitoring/alloy,nginx
+          debug: true
+          timeout: 15s
+          command_timeout: 2m
+
+      - name: Deploy to Droplet
+        uses: appleboy/ssh-action@v1.0.3
+        env:
+          IMAGE_TAG: sha-${{ needs.build-and-push.outputs.sha_short }}
+        with:
+          host: ${{ secrets.DROPLET_HOST }}
+          username: ${{ secrets.SSH_USERNAME }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          envs: IMAGE_TAG
+          script: |
+            set -e
+            cd /opt/filmmash
+            docker compose -f docker-compose.yaml -f docker-compose.prod.yaml pull app
+            docker compose -f docker-compose.yaml -f docker-compose.prod.yaml run --rm migrate
+            docker compose -f docker-compose.yaml -f docker-compose.prod.yaml up -d --force-recreate --wait --wait-timeout 60 app
+            docker image prune -af
