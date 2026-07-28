@@ -21,12 +21,10 @@ docker-shell: ## Open a shell in the running container
 docker-stop: ## Stop the running container
 	docker stop filmmash-go
 
-# Full local stack; monitoring services need COMPOSE_PROFILES=monitoring in .env
-compose-up: ## Start the full local stack
-	docker compose up -d
+dev-up: ## Start the full local stack
+	docker compose --profile development -f docker-compose.yaml -f docker-compose.dev.yaml up -d
 
-# Core + Alloy shipping to Grafana Cloud (what the VPS runs); needs GRAFANA_CLOUD_* in .env
-compose-prod: ## Start the prod stack (core + Alloy)
+prod-up: ## Start the prod stack (core + Alloy)
 	docker compose -f docker-compose.yaml -f docker-compose.prod.yaml up -d
 
 compose-down: ## Stop the stack and remove orphans
@@ -39,7 +37,7 @@ migrate: ## Apply migrations to the dev database
 	goose up
 
 test-db-up: ## Start the postgres container the tests need
-	docker compose up -d --wait postgres
+	docker compose --profile development -f docker-compose.yaml -f docker-compose.dev.yaml up -d --wait postgres
 
 migrate-test-db: ## Apply migrations to the test database
 	goose -env=".env.test" up

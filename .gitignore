@@ -6,3 +6,5 @@ logs/
 .idea/
 
 bin/
+
+.digital-ocean/
