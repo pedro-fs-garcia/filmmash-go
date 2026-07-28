@@ -18,7 +18,19 @@ jobs:
       contents: read
       packages: write
     outputs:
+      # Same value in every matrix leg (derived only from head_sha), so picking
+      # whichever leg finishes last to populate the job output is safe.
       sha_short: ${{ steps.vars.outputs.sha_short }}
+
+    strategy:
+      matrix:
+        component:
+          - name: app
+            dockerfile: Dockerfile.app
+          - name: migrate
+            dockerfile: Dockerfile.migrate
+          - name: seed
+            dockerfile: Dockerfile.seed
 
     steps:
       - name: Checkout repository
@@ -43,11 +55,11 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: .
-          file: Dockerfile.app
+          file: ${{ matrix.component.dockerfile }}
           push: true
           tags: |
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:sha-${{ steps.vars.outputs.sha_short }}
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-${{ matrix.component.name }}:latest
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-${{ matrix.component.name }}:sha-${{ steps.vars.outputs.sha_short }}
 
   deploy:
     needs: build-and-push
@@ -86,7 +98,12 @@ jobs:
           script: |
             set -e
             cd /opt/filmmash
-            docker compose -f docker-compose.yaml -f docker-compose.prod.yaml pull app
-            docker compose -f docker-compose.yaml -f docker-compose.prod.yaml run --rm migrate
-            docker compose -f docker-compose.yaml -f docker-compose.prod.yaml up -d --force-recreate --wait --wait-timeout 60 app
+            COMPOSE="docker compose -f docker-compose.yaml -f docker-compose.prod.yaml"
+            $COMPOSE pull app migrate seed
+            $COMPOSE run --rm --no-deps migrate
+            if [ ! -f .seeded ]; then
+              $COMPOSE run --rm --no-deps seed
+              touch .seeded
+            fi
+            $COMPOSE up -d --force-recreate --wait --wait-timeout 60 --no-deps app
             docker image prune -af

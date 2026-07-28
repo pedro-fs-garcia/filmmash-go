@@ -3,7 +3,13 @@
 # Alloy ships telemetry to Grafana Cloud instead.
 services:
   app:
-    image: ghcr.io/pedro-fs-garcia/filmmash-go:${IMAGE_TAG:-latest}
+    image: ghcr.io/pedro-fs-garcia/filmmash-go-app:${IMAGE_TAG:-latest}
+
+  migrate:
+    image: ghcr.io/pedro-fs-garcia/filmmash-go-migrate:${IMAGE_TAG:-latest}
+
+  seed:
+    image: ghcr.io/pedro-fs-garcia/filmmash-go-seed:${IMAGE_TAG:-latest}
 
   alloy:
     env_file:
