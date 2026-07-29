@@ -1,0 +1,10 @@
+{$DOMAIN} {
+	@health path /health
+	respond @health 404
+
+	# The app trusts this header for client IP; header_up overwrites any
+	# client-supplied value rather than appending to it.
+	reverse_proxy app:8080 {
+		header_up X-Real-IP {remote_host}
+	}
+}

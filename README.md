@@ -24,7 +24,7 @@ The app shows you two movies side by side, you pick the better one, and an Elo r
 | Logging | `log/slog` structured JSON logs |
 | Metrics | Prometheus ([client_golang](https://github.com/prometheus/client_golang)) with custom HTTP, duel, vote, film, and system metrics |
 | Observability | Grafana, Prometheus, Alertmanager, Loki, Grafana Alloy (local profile) or Grafana Cloud (production) |
-| Reverse proxy | nginx |
+| Reverse proxy | [Caddy](https://caddyserver.com/) (automatic HTTPS) |
 | Packaging | Docker multi-stage builds + Docker Compose |
 | External API | TMDB (film/director seed data) |
 
@@ -60,13 +60,13 @@ internal/
 
 migrations/             # goose SQL migrations (schema source of truth for sqlc)
 monitoring/             # Prometheus, Alertmanager, Loki, Alloy, Grafana configs
-nginx/                  # reverse proxy config
+caddy/                  # reverse proxy config (Caddyfile)
 ```
 
 ### Request flow
 
 ```
-nginx (:8080) ──► chi router ──► middleware (client IP, request ID,
+Caddy (:80/:443) ──► chi router ──► middleware (client IP, request ID,
                                   logging, metrics, recover)
                        │
                        ▼
@@ -104,7 +104,7 @@ Core tables: `directors`, `films` (with current Elo `rating`), `duels`, `votes` 
 
 ### Observability
 
-- The app exposes `/metrics` (Prometheus) and `/health` (blocked from the outside by nginx).
+- The app exposes `/metrics` (Prometheus) and `/health` (blocked from the outside by Caddy).
 - **Local/dev** (`COMPOSE_PROFILES=monitoring`): full self-hosted stack — Prometheus (:9090), Alertmanager (:9093, email alerts), Loki (:9080), Grafana (:9000) with provisioned dashboards, and Alloy scraping metrics and shipping container logs.
 - **Production** ([docker-compose.prod.yaml](docker-compose.prod.yaml)): only Alloy runs, forwarding metrics and logs to Grafana Cloud.
 
@@ -128,7 +128,7 @@ Compose brings up, in order:
 2. `migrate` — runs goose migrations, then exits
 3. `seed` — downloads ~500 top-rated films from TMDB, then exits
 4. `app` — the Go server
-5. `nginx` — reverse proxy on **http://localhost:8080**
+5. `caddy` — reverse proxy on **http://localhost** (HTTPS automatically if `DOMAIN` is a real public domain)
 6. The monitoring stack, if the `monitoring` profile is enabled
 
 For production, `make compose-prod` layers [docker-compose.prod.yaml](docker-compose.prod.yaml) on top to ship telemetry to Grafana Cloud instead of running the local monitoring stack.

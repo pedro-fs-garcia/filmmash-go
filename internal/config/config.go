@@ -24,7 +24,7 @@ type Config struct {
 	ZitadelM2MClientId     string `env:"ZITADEL_M2M_CLIENT_ID"`
 	ZitadelM2MClientSecret string `env:"ZITADEL_M2M_CLIENT_SECRET"`
 
-	AppBaseURL string `env:"APP_BASE_URL" envDefault:"http://localhost:8080"`
+	AppBaseURL string `env:"APP_BASE_URL" envDefault:"http://localhost"`
 
 	DuelRatingWindow         int32   `env:"DUEL_RATING_WINDOW"      envDefault:"350"`
 	DuelPopularityWeight     float64 `env:"DUEL_POPULARITY_WEIGHT"  envDefault:"0.0"`
