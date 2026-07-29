@@ -106,4 +106,5 @@ jobs:
               touch .seeded
             fi
             $COMPOSE up -d --force-recreate --wait --wait-timeout 60 --no-deps app
+            $COMPOSE up -d --force-recreate --wait --wait-timeout 60 nginx alloy
             docker image prune -af
