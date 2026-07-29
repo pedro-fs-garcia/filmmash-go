@@ -18,11 +18,10 @@ func main() {
 	cfg := config.Load()
 
 	dsn := fmt.Sprintf(
-		"postgres://%s:%s@%s:%s/%s?sslmode=disable",
+		"postgresql://%s:%s@%s/%s?sslmode=require",
 		cfg.PostgresUser,
 		cfg.PostgresPassword,
 		cfg.PostgresHost,
-		cfg.PostgresPort,
 		cfg.PgDbName,
 	)
 
@@ -33,7 +32,7 @@ func main() {
 
 	client := tmdb.NewClient("https://api.themoviedb.org/3", cfg.TmdbApitoken)
 	totalTop := 0
-	for page := 1; page <= 3; page++ {
+	for page := 1; page <= 300; page++ {
 		fmt.Printf("Downloading top rated movies from TMDB, page %d\n", page)
 		movies, err := client.GetTopRated(int16(page))
 		if err != nil {
@@ -95,7 +94,7 @@ func SaveMovies(ctx context.Context, pool *pgxpool.Pool, movies []tmdb.Movie) in
 	for range movies {
 		tag, err := result.Exec()
 		if err != nil {
-			fmt.Printf("Error reading results")
+			fmt.Printf("Error reading results: %v\n", err)
 		}
 		total += int(tag.RowsAffected())
 	}
