@@ -123,7 +123,7 @@ func initRouter(
 
 	router.Handle("/metrics", promhttp.HandlerFor(m.Registry, promhttp.HandlerOpts{}))
 
-	go authService.DeleteExpiredSessionsJob(ctx, 5*time.Minute)
+	go authService.DeleteExpiredSessionsJob(ctx, 24*time.Minute)
 
 	go filmService.InsertFilmsJob(ctx, 24*time.Hour, tmdbClient.GetPopulars)
 	go filmService.InsertFilmsJob(ctx, 24*7*time.Hour, tmdbClient.GetTopRated)

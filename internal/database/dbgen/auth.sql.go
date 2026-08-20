@@ -44,7 +44,7 @@ func (q *Queries) DeleteSessionByTokenHash(ctx context.Context, tokenHash []byte
 }
 
 const getSessionByTokenHash = `-- name: GetSessionByTokenHash :one
-SELECT id, token_hash, user_id, access_token, access_token_expires_at, refresh_token, id_token, scopes, ip_address, user_agent, roles, created_at, last_seen_at, expires_at FROM sessions WHERE token_hash = $1
+SELECT id, token_hash, user_id, access_token, access_token_expires_at, refresh_token, id_token, scopes, ip_address, user_agent, roles, created_at, last_seen_at, expires_at FROM sessions WHERE token_hash = $1 AND expires_at > now()
 `
 
 func (q *Queries) GetSessionByTokenHash(ctx context.Context, tokenHash []byte) (Session, error) {

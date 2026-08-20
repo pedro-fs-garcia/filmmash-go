@@ -17,7 +17,7 @@ INSERT INTO sessions (
 RETURNING id;
 
 -- name: GetSessionByTokenHash :one
-SELECT * FROM sessions WHERE token_hash = $1;
+SELECT * FROM sessions WHERE token_hash = $1 AND expires_at > now();
 
 -- name: DeleteSessionByTokenHash :execrows
 DELETE FROM sessions WHERE token_hash = $1;
