@@ -212,3 +212,30 @@ func (r *repository) CountPending(ctx context.Context) (int, error) {
 	}
 	return int(n), nil
 }
+
+func (r *repository) ComposeWeightedDuel(
+	ctx context.Context,
+	id int32,
+	minCandidates, maxCandidates int16,
+	ratingWindow float64,
+	popularityWeight float64,
+	newFilmBoost float64,
+	newFilmDuelThreshold int16,
+) (Duel, error) {
+	row, err := r.queries(ctx).ComposeWeightedDuel(ctx, dbgen.ComposeWeightedDuelParams{
+		WinnerID:             id,
+		MinCandidates:        int32(minCandidates),
+		MaxCandidates:        int32(maxCandidates),
+		RatingWindow:         ratingWindow,
+		PopularityWeight:     popularityWeight,
+		NewFilmBoost:         newFilmBoost,
+		NewFilmDuelThreshold: int32(newFilmDuelThreshold),
+	})
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return Duel{}, fmt.Errorf("no opponent film available for winner(id: %v): %w", id, ErrNotEnoughFilms)
+		}
+		return Duel{}, parseDBError(fmt.Sprintf("composing weighted duel for winner %d", id), err)
+	}
+	return duelFromRow(dbgen.CreateDuelRow(row)), nil
+}

@@ -106,6 +106,116 @@ func (q *Queries) ComposeDuel(ctx context.Context, arg ComposeDuelParams) (Compo
 	return i, err
 }
 
+const composeWeightedDuel = `-- name: ComposeWeightedDuel :one
+WITH winner AS (
+    SELECT rating FROM films WHERE films.id = $1
+),
+closest AS (
+    -- Pool: max_candidates closest by rating, padded to min_candidates if too few are in-window.
+    SELECT films.id, films.popularity, films.duel_count,
+        ABS(films.rating - winner.rating) <= $2::float AS in_window,
+        ABS(films.rating - winner.rating) AS rating_distance
+    FROM films, winner
+    WHERE films.id <> $1
+    ORDER BY ABS(films.rating - winner.rating)
+    LIMIT $3::int
+),
+candidates AS (
+    SELECT id, popularity, duel_count FROM closest
+    ORDER BY rating_distance
+    LIMIT GREATEST(
+        (SELECT COUNT(*) FROM closest WHERE in_window),
+        $4::int
+    )
+),
+random_id AS (
+    -- Exponential-clock weighted pick: P(i) ∝ weight; new_film_boost multiplies under-duelled films.
+    SELECT id FROM candidates
+    ORDER BY -LN(1.0 - RANDOM()) / (
+        (1.0 + candidates.popularity * $5::float)
+        * CASE WHEN $6::float > 1
+                AND candidates.duel_count < $7::int
+               THEN $6::float
+               ELSE 1.0 END
+    )
+    LIMIT 1
+),
+inserted_duel AS (
+    INSERT INTO duels (film_a_id, film_b_id)
+    SELECT $1, random_id.id FROM random_id
+    RETURNING duels.id AS duel_id, film_a_id, film_b_id
+)
+SELECT i.duel_id,
+    fa.id AS film_a_id, fa.title AS film_a_title, fa.release_year AS film_a_release_year,
+    fa.image_path AS film_a_image_path, fa.rating AS film_a_rating,
+    da.id AS director_a_id, da.name AS director_a_name,
+    fb.id AS film_b_id, fb.title AS film_b_title, fb.release_year AS film_b_release_year,
+    fb.image_path AS film_b_image_path, fb.rating AS film_b_rating,
+    db.id AS director_b_id, db.name AS director_b_name
+FROM inserted_duel i
+JOIN films fa ON fa.id = i.film_a_id JOIN directors da ON da.id = fa.director_id
+JOIN films fb ON fb.id = i.film_b_id JOIN directors db ON db.id = fb.director_id
+`
+
+type ComposeWeightedDuelParams struct {
+	WinnerID             int32
+	RatingWindow         float64
+	MaxCandidates        int32
+	MinCandidates        int32
+	PopularityWeight     float64
+	NewFilmBoost         float64
+	NewFilmDuelThreshold int32
+}
+
+type ComposeWeightedDuelRow struct {
+	DuelID           uuid.UUID
+	FilmAID          int32
+	FilmATitle       string
+	FilmAReleaseYear int16
+	FilmAImagePath   *string
+	FilmARating      float64
+	DirectorAID      int32
+	DirectorAName    string
+	FilmBID          int32
+	FilmBTitle       string
+	FilmBReleaseYear int16
+	FilmBImagePath   *string
+	FilmBRating      float64
+	DirectorBID      int32
+	DirectorBName    string
+}
+
+func (q *Queries) ComposeWeightedDuel(ctx context.Context, arg ComposeWeightedDuelParams) (ComposeWeightedDuelRow, error) {
+	row := q.db.QueryRow(ctx, composeWeightedDuel,
+		arg.WinnerID,
+		arg.RatingWindow,
+		arg.MaxCandidates,
+		arg.MinCandidates,
+		arg.PopularityWeight,
+		arg.NewFilmBoost,
+		arg.NewFilmDuelThreshold,
+	)
+	var i ComposeWeightedDuelRow
+	err := row.Scan(
+		&i.DuelID,
+		&i.FilmAID,
+		&i.FilmATitle,
+		&i.FilmAReleaseYear,
+		&i.FilmAImagePath,
+		&i.FilmARating,
+		&i.DirectorAID,
+		&i.DirectorAName,
+		&i.FilmBID,
+		&i.FilmBTitle,
+		&i.FilmBReleaseYear,
+		&i.FilmBImagePath,
+		&i.FilmBRating,
+		&i.DirectorBID,
+		&i.DirectorBName,
+	)
+	return i, err
+}
+
 const countPendingDuels = `-- name: CountPendingDuels :one
 SELECT COUNT(*) FROM duels d
 WHERE NOT EXISTS (SELECT 1 FROM votes v WHERE v.duel_id = d.id)
@@ -389,6 +499,68 @@ func (q *Queries) SelectRandomFilms(ctx context.Context) ([]SelectRandomFilmsRow
 			&i.DirectorID,
 			&i.DirectorName,
 		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const weightedDuelCandidates = `-- name: WeightedDuelCandidates :many
+WITH winner AS (
+    SELECT rating FROM films WHERE films.id = $2
+),
+closest AS (
+    SELECT films.id, films.popularity, films.duel_count,
+        ABS(films.rating - winner.rating) <= $3::float AS in_window,
+        ABS(films.rating - winner.rating) AS rating_distance
+    FROM films, winner
+    WHERE films.id <> $2
+    ORDER BY ABS(films.rating - winner.rating)
+    LIMIT $4::int
+)
+SELECT id, popularity, duel_count FROM closest
+ORDER BY rating_distance
+LIMIT GREATEST(
+    (SELECT COUNT(*) FROM closest WHERE in_window),
+    $1::int
+)
+`
+
+type WeightedDuelCandidatesParams struct {
+	MinCandidates int32
+	WinnerID      int32
+	RatingWindow  float64
+	MaxCandidates int32
+}
+
+type WeightedDuelCandidatesRow struct {
+	ID         int32
+	Popularity float64
+	DuelCount  int32
+}
+
+// TEMPORARY, test-only: exposes ComposeWeightedDuel's candidate pool (no
+// insert, no random draw) so tests can diff it against FindCandidates'
+// pool for the same inputs. Delete once behavioral parity is confirmed.
+func (q *Queries) WeightedDuelCandidates(ctx context.Context, arg WeightedDuelCandidatesParams) ([]WeightedDuelCandidatesRow, error) {
+	rows, err := q.db.Query(ctx, weightedDuelCandidates,
+		arg.MinCandidates,
+		arg.WinnerID,
+		arg.RatingWindow,
+		arg.MaxCandidates,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []WeightedDuelCandidatesRow
+	for rows.Next() {
+		var i WeightedDuelCandidatesRow
+		if err := rows.Scan(&i.ID, &i.Popularity, &i.DuelCount); err != nil {
 			return nil, err
 		}
 		items = append(items, i)

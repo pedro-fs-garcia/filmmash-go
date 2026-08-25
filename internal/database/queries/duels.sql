@@ -118,3 +118,53 @@ JOIN films fb ON fb.id = i.film_b_id JOIN directors db ON db.id = fb.director_id
 -- name: CountPendingDuels :one
 SELECT COUNT(*) FROM duels d
 WHERE NOT EXISTS (SELECT 1 FROM votes v WHERE v.duel_id = d.id);
+
+-- name: ComposeWeightedDuel :one
+WITH winner AS (
+    SELECT rating FROM films WHERE films.id = sqlc.arg(winner_id)
+),
+closest AS (
+    -- Pool: max_candidates closest by rating, padded to min_candidates if too few are in-window.
+    SELECT films.id, films.popularity, films.duel_count,
+        ABS(films.rating - winner.rating) <= sqlc.arg(rating_window)::float AS in_window,
+        ABS(films.rating - winner.rating) AS rating_distance
+    FROM films, winner
+    WHERE films.id <> sqlc.arg(winner_id)
+    ORDER BY ABS(films.rating - winner.rating)
+    LIMIT sqlc.arg(max_candidates)::int
+),
+candidates AS (
+    SELECT id, popularity, duel_count FROM closest
+    ORDER BY rating_distance
+    LIMIT GREATEST(
+        (SELECT COUNT(*) FROM closest WHERE in_window),
+        sqlc.arg(min_candidates)::int
+    )
+),
+random_id AS (
+    -- Exponential-clock weighted pick: P(i) ∝ weight; new_film_boost multiplies under-duelled films.
+    SELECT id FROM candidates
+    ORDER BY -LN(1.0 - RANDOM()) / (
+        (1.0 + candidates.popularity * sqlc.arg(popularity_weight)::float)
+        * CASE WHEN sqlc.arg(new_film_boost)::float > 1
+                AND candidates.duel_count < sqlc.arg(new_film_duel_threshold)::int
+               THEN sqlc.arg(new_film_boost)::float
+               ELSE 1.0 END
+    )
+    LIMIT 1
+),
+inserted_duel AS (
+    INSERT INTO duels (film_a_id, film_b_id)
+    SELECT sqlc.arg(winner_id), random_id.id FROM random_id
+    RETURNING duels.id AS duel_id, film_a_id, film_b_id
+)
+SELECT i.duel_id,
+    fa.id AS film_a_id, fa.title AS film_a_title, fa.release_year AS film_a_release_year,
+    fa.image_path AS film_a_image_path, fa.rating AS film_a_rating,
+    da.id AS director_a_id, da.name AS director_a_name,
+    fb.id AS film_b_id, fb.title AS film_b_title, fb.release_year AS film_b_release_year,
+    fb.image_path AS film_b_image_path, fb.rating AS film_b_rating,
+    db.id AS director_b_id, db.name AS director_b_name
+FROM inserted_duel i
+JOIN films fa ON fa.id = i.film_a_id JOIN directors da ON da.id = fa.director_id
+JOIN films fb ON fb.id = i.film_b_id JOIN directors db ON db.id = fb.director_id;
