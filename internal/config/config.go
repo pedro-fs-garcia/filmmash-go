@@ -15,6 +15,7 @@ type Config struct {
 	PostgresHost     string `env:"POSTGRES_HOST"     envDefault:"localhost"`
 	PostgresPort     string `env:"POSTGRES_PORT"     envDefault:"5432"`
 	PgDbName         string `env:"POSTGRES_DB_NAME"  envDefault:"filmmash_db"`
+	PostgresSSLMode  string `env:"POSTGRES_SSLMODE"  envDefault:"require"`
 
 	TmdbApitoken string `env:"TMDB_API_TOKEN" envDefault:""`
 

@@ -18,11 +18,13 @@ func main() {
 	cfg := config.Load()
 
 	dsn := fmt.Sprintf(
-		"postgresql://%s:%s@%s/%s?sslmode=require",
+		"postgresql://%s:%s@%s:%s/%s?sslmode=%s",
 		cfg.PostgresUser,
 		cfg.PostgresPassword,
 		cfg.PostgresHost,
+		cfg.PostgresPort,
 		cfg.PgDbName,
+		cfg.PostgresSSLMode,
 	)
 
 	pool, err := database.Pool(ctx, dsn)

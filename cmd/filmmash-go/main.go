@@ -23,12 +23,13 @@ func run() error {
 	cfg := config.Load()
 
 	dsn := fmt.Sprintf(
-		"postgres://%s:%s@%s:%s/%s?sslmode=require",
+		"postgres://%s:%s@%s:%s/%s?sslmode=%s",
 		cfg.PostgresUser,
 		cfg.PostgresPassword,
 		cfg.PostgresHost,
 		cfg.PostgresPort,
 		cfg.PgDbName,
+		cfg.PostgresSSLMode,
 	)
 
 	logger := slog.New(slog.NewJSONHandler(
