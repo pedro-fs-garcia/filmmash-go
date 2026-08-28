@@ -8,6 +8,7 @@ import (
 	"filmmash/internal/database"
 	"filmmash/internal/duel"
 	"filmmash/internal/film"
+	"filmmash/internal/freezeframe"
 	"filmmash/internal/metrics"
 	"filmmash/internal/tmdb"
 	"filmmash/internal/vote"
@@ -106,6 +107,8 @@ func initRouter(
 	hcfg := auth.NewHandlerConfig("/ui", "/ui/films", cfg.ZitadelBaseURL+"/ui/console/users/me")
 	authHandler := auth.NewHandler(logger, authService, idp, oidcFlowCodec, hcfg)
 
+	freezeFrameHandler := freezeframe.NewHandler(logger)
+
 	adminRepo := admin.NewRepository(pool)
 	adminService := admin.NewService(adminRepo, idp, zClient, tmdbClient, filmService)
 	adminHandler := admin.NewHandler(logger, adminService, tmdbClient)
@@ -119,6 +122,7 @@ func initRouter(
 		duelHandler,
 		voteHandler,
 		adminHandler,
+		freezeFrameHandler,
 	)
 
 	router.Handle("/metrics", promhttp.HandlerFor(m.Registry, promhttp.HandlerOpts{}))

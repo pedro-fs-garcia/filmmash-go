@@ -95,6 +95,224 @@ func (b *InsertFilmBatchBatchResults) Close() error {
 	return b.br.Close()
 }
 
+const insertFrames = `-- name: InsertFrames :batchone
+INSERT INTO frames (film_id, image_path)
+VALUES ($1, $2)
+RETURNING id
+`
+
+type InsertFramesBatchResults struct {
+	br     pgx.BatchResults
+	tot    int
+	closed bool
+}
+
+type InsertFramesParams struct {
+	FilmID    int32
+	ImagePath string
+}
+
+func (q *Queries) InsertFrames(ctx context.Context, arg []InsertFramesParams) *InsertFramesBatchResults {
+	batch := &pgx.Batch{}
+	for _, a := range arg {
+		vals := []interface{}{
+			a.FilmID,
+			a.ImagePath,
+		}
+		batch.Queue(insertFrames, vals...)
+	}
+	br := q.db.SendBatch(ctx, batch)
+	return &InsertFramesBatchResults{br, len(arg), false}
+}
+
+func (b *InsertFramesBatchResults) QueryRow(f func(int, int32, error)) {
+	defer b.br.Close()
+	for t := 0; t < b.tot; t++ {
+		var id int32
+		if b.closed {
+			if f != nil {
+				f(t, id, ErrBatchAlreadyClosed)
+			}
+			continue
+		}
+		row := b.br.QueryRow()
+		err := row.Scan(&id)
+		if f != nil {
+			f(t, id, err)
+		}
+	}
+}
+
+func (b *InsertFramesBatchResults) Close() error {
+	b.closed = true
+	return b.br.Close()
+}
+
+const insertReelAlternatives = `-- name: InsertReelAlternatives :batchone
+INSERT INTO reel_alternatives (reel_id, film_id, seq)
+VALUES ($1, $2, $3)
+RETURNING id
+`
+
+type InsertReelAlternativesBatchResults struct {
+	br     pgx.BatchResults
+	tot    int
+	closed bool
+}
+
+type InsertReelAlternativesParams struct {
+	ReelID int32
+	FilmID int32
+	Seq    int16
+}
+
+func (q *Queries) InsertReelAlternatives(ctx context.Context, arg []InsertReelAlternativesParams) *InsertReelAlternativesBatchResults {
+	batch := &pgx.Batch{}
+	for _, a := range arg {
+		vals := []interface{}{
+			a.ReelID,
+			a.FilmID,
+			a.Seq,
+		}
+		batch.Queue(insertReelAlternatives, vals...)
+	}
+	br := q.db.SendBatch(ctx, batch)
+	return &InsertReelAlternativesBatchResults{br, len(arg), false}
+}
+
+func (b *InsertReelAlternativesBatchResults) QueryRow(f func(int, int32, error)) {
+	defer b.br.Close()
+	for t := 0; t < b.tot; t++ {
+		var id int32
+		if b.closed {
+			if f != nil {
+				f(t, id, ErrBatchAlreadyClosed)
+			}
+			continue
+		}
+		row := b.br.QueryRow()
+		err := row.Scan(&id)
+		if f != nil {
+			f(t, id, err)
+		}
+	}
+}
+
+func (b *InsertReelAlternativesBatchResults) Close() error {
+	b.closed = true
+	return b.br.Close()
+}
+
+const insertReelFrames = `-- name: InsertReelFrames :batchexec
+INSERT INTO reel_frames (reel_id, frame_id, difficulty, seq)
+VALUES ($1, $2, $3, $4)
+RETURNING id
+`
+
+type InsertReelFramesBatchResults struct {
+	br     pgx.BatchResults
+	tot    int
+	closed bool
+}
+
+type InsertReelFramesParams struct {
+	ReelID     int32
+	FrameID    int32
+	Difficulty int16
+	Seq        int16
+}
+
+func (q *Queries) InsertReelFrames(ctx context.Context, arg []InsertReelFramesParams) *InsertReelFramesBatchResults {
+	batch := &pgx.Batch{}
+	for _, a := range arg {
+		vals := []interface{}{
+			a.ReelID,
+			a.FrameID,
+			a.Difficulty,
+			a.Seq,
+		}
+		batch.Queue(insertReelFrames, vals...)
+	}
+	br := q.db.SendBatch(ctx, batch)
+	return &InsertReelFramesBatchResults{br, len(arg), false}
+}
+
+func (b *InsertReelFramesBatchResults) Exec(f func(int, error)) {
+	defer b.br.Close()
+	for t := 0; t < b.tot; t++ {
+		if b.closed {
+			if f != nil {
+				f(t, ErrBatchAlreadyClosed)
+			}
+			continue
+		}
+		_, err := b.br.Exec()
+		if f != nil {
+			f(t, err)
+		}
+	}
+}
+
+func (b *InsertReelFramesBatchResults) Close() error {
+	b.closed = true
+	return b.br.Close()
+}
+
+const insertReels = `-- name: InsertReels :batchone
+INSERT INTO reels (game_id, film_id, seq)
+VALUES ($1, $2, $3)
+RETURNING id
+`
+
+type InsertReelsBatchResults struct {
+	br     pgx.BatchResults
+	tot    int
+	closed bool
+}
+
+type InsertReelsParams struct {
+	GameID int32
+	FilmID int32
+	Seq    int16
+}
+
+func (q *Queries) InsertReels(ctx context.Context, arg []InsertReelsParams) *InsertReelsBatchResults {
+	batch := &pgx.Batch{}
+	for _, a := range arg {
+		vals := []interface{}{
+			a.GameID,
+			a.FilmID,
+			a.Seq,
+		}
+		batch.Queue(insertReels, vals...)
+	}
+	br := q.db.SendBatch(ctx, batch)
+	return &InsertReelsBatchResults{br, len(arg), false}
+}
+
+func (b *InsertReelsBatchResults) QueryRow(f func(int, int32, error)) {
+	defer b.br.Close()
+	for t := 0; t < b.tot; t++ {
+		var id int32
+		if b.closed {
+			if f != nil {
+				f(t, id, ErrBatchAlreadyClosed)
+			}
+			continue
+		}
+		row := b.br.QueryRow()
+		err := row.Scan(&id)
+		if f != nil {
+			f(t, id, err)
+		}
+	}
+}
+
+func (b *InsertReelsBatchResults) Close() error {
+	b.closed = true
+	return b.br.Close()
+}
+
 const updateFilmRatings = `-- name: UpdateFilmRatings :batchone
 UPDATE films SET rating = $1 WHERE id = $2 RETURNING id
 `

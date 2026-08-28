@@ -9,7 +9,17 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 )
+
+type Answer struct {
+	ID                int32
+	ReelID            int32
+	ReelAlternativeID int32
+	UserID            uuid.UUID
+	FramesRevealed    int16
+	CreatedAt         time.Time
+}
 
 type Director struct {
 	ID   int32
@@ -35,6 +45,43 @@ type Film struct {
 	DuelCount   int32
 	CreatedAt   time.Time
 	UpdatedAt   time.Time
+}
+
+type Frame struct {
+	ID        int32
+	FilmID    int32
+	ImagePath string
+	CreatedAt time.Time
+}
+
+type Game struct {
+	ID        int32
+	ValidAt   pgtype.Date
+	CreatedAt time.Time
+}
+
+type Reel struct {
+	ID        int32
+	GameID    int32
+	FilmID    int32
+	Seq       int16
+	CreatedAt time.Time
+}
+
+type ReelAlternative struct {
+	ID        int32
+	ReelID    int32
+	FilmID    int32
+	Seq       int16
+	CreatedAt time.Time
+}
+
+type ReelFrame struct {
+	ID         int32
+	ReelID     int32
+	FrameID    int32
+	Difficulty int16
+	Seq        int16
 }
 
 type Session struct {

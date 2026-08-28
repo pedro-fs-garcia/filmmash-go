@@ -5,6 +5,7 @@ import (
 	"filmmash/internal/auth"
 	"filmmash/internal/duel"
 	"filmmash/internal/film"
+	"filmmash/internal/freezeframe"
 	"filmmash/internal/metrics"
 	"filmmash/internal/middleware"
 	"filmmash/internal/vote"
@@ -24,6 +25,7 @@ func NewRouter(
 	duelHandler *duel.Handler,
 	voteHandler *vote.Handler,
 	adminHandler *admin.Handler,
+	freezeFrameHandler *freezeframe.Handler,
 ) *chi.Mux {
 	router := chi.NewRouter()
 
@@ -56,6 +58,9 @@ func NewRouter(
 			r.Get("/film/{id}", filmHandler.FilmHandler)
 			r.Get("/film/votes/{film_id}", voteHandler.ListFilmVotes)
 			r.Get("/my_votes", authService.SessionMiddleware(voteHandler.MyVotesHandler))
+
+			r.Get("/freeze_frame", freezeFrameHandler.FreezeFrameHandler)
+
 			r.Post(
 				"/duel/{duel_id}/result",
 				authService.SessionMiddleware(voteHandler.DuelResultHandler),
