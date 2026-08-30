@@ -24,14 +24,52 @@ func (r *repository) queries(ctx context.Context) *dbgen.Queries {
 	return dbgen.New(database.ExtractTx(ctx, r.pool))
 }
 
-func (r *repository) insertGame(ctx context.Context, g *Game) error {
+func (r *repository) insertGame(ctx context.Context, g *Game) (int32, error) {
 	id, err := r.queries(ctx).InsertGame(ctx, pgtype.Date{Time: g.ValidAt, Valid: true})
 	if err != nil {
-		return database.ParseDBError("inserting game", err)
+		return 0, database.ParseDBError("inserting game", err)
+	}
+	return id, nil
+}
+
+func (r *repository) insertReels(ctx context.Context, gameId int32, reels []Reel) ([]int32, error) {
+	if len(reels) == 0 {
+		return nil, nil
 	}
 
-	g.ID = id
-	return nil
+	params := make([]dbgen.InsertReelsParams, len(reels))
+	for i, r := range reels {
+		params[i] = dbgen.InsertReelsParams{
+			GameID: gameId,
+			FilmID: int32(r.Film.Id),
+			Seq:    r.Seq,
+		}
+	}
+
+	res := r.queries(ctx).InsertReels(ctx, params)
+	defer func() { _ = res.Close() }()
+
+	ids := make([]int32, len(reels))
+	var batchErr error
+	res.QueryRow(func(i int, id int32, err error) {
+		if err != nil {
+			if batchErr == nil {
+				batchErr = database.ParseDBError(
+					fmt.Sprintf(
+						"inserting reel (game_id: %d, film_id: %d, seq: %d)",
+						gameId, params[i].FilmID, params[i].Seq,
+					),
+					err,
+				)
+			}
+			return
+		}
+		ids[i] = id
+	})
+	if batchErr != nil {
+		return nil, batchErr
+	}
+	return ids, nil
 }
 
 func (r *repository) insertReelAlternatives(ctx context.Context, reelId int32, alts []Alternative) ([]int32, error) {
@@ -74,24 +112,84 @@ func (r *repository) insertReelAlternatives(ctx context.Context, reelId int32, a
 	return ids, nil
 }
 
-// func (uc *SeedGameUC) Seed(ctx context.Context, g *Game) error {
-// 	if err := g.Validate(); err != nil {
-// 		return err
-// 	}
-// 	return uc.txManager.ExecTx(ctx, func(txCtx context.Context) error {
-// 		if err := uc.repo.insertGame(txCtx, g); err != nil {
-// 			return err
-// 		}
-// 		reelIDs, err := uc.repo.insertReels(txCtx, g.ID, g.Reels)
-// 		if err != nil {
-// 			return err
-// 		}
-// 		for i := range g.Reels {
-// 			if _, err := uc.repo.insertReelAlternatives(txCtx, reelIDs[i], g.Reels[i].Alternatives); err != nil {
-// 				return err
-// 			}
-// 			// frames, then reel_frames
-// 		}
-// 		return nil
-// 	})
-// }
+func (r *repository) insertFrames(ctx context.Context, frames []Frame) ([]int32, error) {
+	if len(frames) == 0 {
+		return nil, nil
+	}
+
+	params := make([]dbgen.InsertFramesParams, len(frames))
+	for i, f := range frames {
+		params[i] = dbgen.InsertFramesParams{
+			FilmID:    f.FilmID,
+			ImagePath: f.ImagePath,
+		}
+	}
+
+	res := r.queries(ctx).InsertFrames(ctx, params)
+	defer func() { _ = res.Close() }()
+
+	ids := make([]int32, len(frames))
+	var batchErr error
+	res.QueryRow(func(i int, id int32, err error) {
+		if err != nil {
+			if batchErr == nil {
+				batchErr = database.ParseDBError(
+					fmt.Sprintf(
+						"inserting frame (film_id: %d, image_path: %s)",
+						frames[i].FilmID, frames[i].ImagePath,
+					),
+					err,
+				)
+			}
+			return
+		}
+		ids[i] = id
+	})
+	if batchErr != nil {
+		return nil, batchErr
+	}
+	return ids, nil
+}
+
+func (r *repository) insertReelFrames(ctx context.Context, reelFrames []dbgen.ReelFrame) ([]int32, error) {
+	if len(reelFrames) == 0 {
+		return nil, nil
+	}
+
+	params := make([]dbgen.InsertReelFramesParams, len(reelFrames))
+	for i, rf := range reelFrames {
+		params[i] = dbgen.InsertReelFramesParams{
+			ReelID:     rf.ReelID,
+			FrameID:    rf.FrameID,
+			Difficulty: rf.Difficulty,
+			Seq:        rf.Seq,
+		}
+	}
+
+	res := r.queries(ctx).InsertReelFrames(ctx, params)
+	defer func() { _ = res.Close() }()
+
+	ids := make([]int32, len(reelFrames))
+	var batchErr error
+
+	res.QueryRow(func(i int, id int32, err error) {
+		if err != nil {
+			if batchErr == nil {
+				rf := reelFrames[i]
+				batchErr = database.ParseDBError(
+					fmt.Sprintf(
+						"inserting reel frame (reel_id: %d, frame_id: %d, difficulty: %d, seq: %d)",
+						rf.ReelID, rf.FrameID, rf.Difficulty, rf.Seq,
+					),
+					err,
+				)
+			}
+			return
+		}
+		ids[i] = id
+	})
+	if batchErr != nil {
+		return nil, batchErr
+	}
+	return ids, nil
+}

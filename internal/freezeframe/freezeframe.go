@@ -17,13 +17,13 @@ type Reel struct {
 	ID  int32
 	Seq int16
 
-	Solution     film.Film
-	Frames       []ReelFrame
+	Film         film.Film
+	ReelFrames   []ReelFrame
 	Alternatives []Alternative
 }
 
 type Frame struct {
-	Id        int32
+	ID        int32
 	FilmID    int32
 	ImagePath string
 }
@@ -61,4 +61,8 @@ type Result struct {
 	ChosenID, CorrectID int32
 	Correct             bool
 	Points              int
+}
+
+func (g *Game) Validate() error {
+	return nil
 }

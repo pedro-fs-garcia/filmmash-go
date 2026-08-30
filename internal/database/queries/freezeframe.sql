@@ -11,9 +11,10 @@ RETURNING id;
 -- name: InsertFrames :batchone
 INSERT INTO frames (film_id, image_path)
 VALUES (sqlc.arg(film_id), sqlc.arg(image_path))
+ON CONFLICT DO NOTHING
 RETURNING id;
 
--- name: InsertReelFrames :batchexec
+-- name: InsertReelFrames :batchone
 INSERT INTO reel_frames (reel_id, frame_id, difficulty, seq)
 VALUES (sqlc.arg(reel_id), sqlc.arg(frame_id), sqlc.arg(difficulty), sqlc.arg(seq))
 RETURNING id;

@@ -34,7 +34,7 @@ CREATE INDEX idx_reel_alternatives_film_id ON reel_alternatives(film_id);
 CREATE TABLE frames (
     id         INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     film_id    INTEGER NOT NULL REFERENCES films(id) ON DELETE RESTRICT,
-    image_path TEXT NOT NULL,
+    image_path TEXT NOT NULL UNIQUE,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 

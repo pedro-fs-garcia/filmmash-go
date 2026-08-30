@@ -98,6 +98,7 @@ func (b *InsertFilmBatchBatchResults) Close() error {
 const insertFrames = `-- name: InsertFrames :batchone
 INSERT INTO frames (film_id, image_path)
 VALUES ($1, $2)
+ON CONFLICT DO NOTHING
 RETURNING id
 `
 
@@ -203,7 +204,7 @@ func (b *InsertReelAlternativesBatchResults) Close() error {
 	return b.br.Close()
 }
 
-const insertReelFrames = `-- name: InsertReelFrames :batchexec
+const insertReelFrames = `-- name: InsertReelFrames :batchone
 INSERT INTO reel_frames (reel_id, frame_id, difficulty, seq)
 VALUES ($1, $2, $3, $4)
 RETURNING id
@@ -237,18 +238,20 @@ func (q *Queries) InsertReelFrames(ctx context.Context, arg []InsertReelFramesPa
 	return &InsertReelFramesBatchResults{br, len(arg), false}
 }
 
-func (b *InsertReelFramesBatchResults) Exec(f func(int, error)) {
+func (b *InsertReelFramesBatchResults) QueryRow(f func(int, int32, error)) {
 	defer b.br.Close()
 	for t := 0; t < b.tot; t++ {
+		var id int32
 		if b.closed {
 			if f != nil {
-				f(t, ErrBatchAlreadyClosed)
+				f(t, id, ErrBatchAlreadyClosed)
 			}
 			continue
 		}
-		_, err := b.br.Exec()
+		row := b.br.QueryRow()
+		err := row.Scan(&id)
 		if f != nil {
-			f(t, err)
+			f(t, id, err)
 		}
 	}
 }
