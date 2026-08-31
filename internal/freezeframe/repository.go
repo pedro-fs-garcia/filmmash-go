@@ -24,7 +24,7 @@ func (r *repository) queries(ctx context.Context) *dbgen.Queries {
 	return dbgen.New(database.ExtractTx(ctx, r.pool))
 }
 
-func (r *repository) insertGame(ctx context.Context, g *Game) (int32, error) {
+func (r *repository) insertGame(ctx context.Context, g Game) (int32, error) {
 	id, err := r.queries(ctx).InsertGame(ctx, pgtype.Date{Time: g.ValidAt, Valid: true})
 	if err != nil {
 		return 0, database.ParseDBError("inserting game", err)
@@ -38,11 +38,11 @@ func (r *repository) insertReels(ctx context.Context, gameId int32, reels []Reel
 	}
 
 	params := make([]dbgen.InsertReelsParams, len(reels))
-	for i, r := range reels {
+	for i, reel := range reels {
 		params[i] = dbgen.InsertReelsParams{
 			GameID: gameId,
-			FilmID: int32(r.Film.Id),
-			Seq:    r.Seq,
+			FilmID: int32(reel.Film.Id),
+			Seq:    reel.Seq,
 		}
 	}
 
@@ -151,7 +151,7 @@ func (r *repository) insertFrames(ctx context.Context, frames []Frame) ([]int32,
 	return ids, nil
 }
 
-func (r *repository) insertReelFrames(ctx context.Context, reelFrames []dbgen.ReelFrame) ([]int32, error) {
+func (r *repository) insertReelFrames(ctx context.Context, reelId int32, reelFrames []ReelFrame) ([]int32, error) {
 	if len(reelFrames) == 0 {
 		return nil, nil
 	}
@@ -159,8 +159,8 @@ func (r *repository) insertReelFrames(ctx context.Context, reelFrames []dbgen.Re
 	params := make([]dbgen.InsertReelFramesParams, len(reelFrames))
 	for i, rf := range reelFrames {
 		params[i] = dbgen.InsertReelFramesParams{
-			ReelID:     rf.ReelID,
-			FrameID:    rf.FrameID,
+			ReelID:     reelId,
+			FrameID:    rf.Frame.ID,
 			Difficulty: rf.Difficulty,
 			Seq:        rf.Seq,
 		}
@@ -179,7 +179,7 @@ func (r *repository) insertReelFrames(ctx context.Context, reelFrames []dbgen.Re
 				batchErr = database.ParseDBError(
 					fmt.Sprintf(
 						"inserting reel frame (reel_id: %d, frame_id: %d, difficulty: %d, seq: %d)",
-						rf.ReelID, rf.FrameID, rf.Difficulty, rf.Seq,
+						reelId, rf.Frame.ID, rf.Difficulty, rf.Seq,
 					),
 					err,
 				)

@@ -3,7 +3,6 @@ package freezeframe
 import (
 	"context"
 	"filmmash/internal/database"
-	"filmmash/internal/database/dbgen"
 	"log/slog"
 )
 
@@ -30,11 +29,12 @@ func (s *Service) SeedGame(ctx context.Context, g *Game) error {
 	var gameId int32
 	var reelIds []int32
 	var alternativeIds = make([][]int32, len(g.Reels))
+	var frameIds = make([][]int32, len(g.Reels))
 	var reelFrameIds = make([][]int32, len(g.Reels))
 
 	seedErr = s.txManager.ExecTx(ctx, func(txCtx context.Context) error {
 		var err error
-		gameId, err = s.repo.insertGame(txCtx, g)
+		gameId, err = s.repo.insertGame(txCtx, *g)
 		if err != nil {
 			return err
 		}
@@ -45,33 +45,34 @@ func (s *Service) SeedGame(ctx context.Context, g *Game) error {
 		}
 
 		for i := range g.Reels {
-			alternativeIds[i], err = s.repo.insertReelAlternatives(txCtx, reelIds[i], g.Reels[i].Alternatives)
+			reel := &g.Reels[i]
+
+			alternativeIds[i], err = s.repo.insertReelAlternatives(txCtx, reelIds[i], reel.Alternatives)
 			if err != nil {
 				return err
 			}
 
-			frames := make([]Frame, len(g.Reels[i].ReelFrames))
-			for j, fr := range g.Reels[i].ReelFrames {
+			frames := make([]Frame, len(reel.ReelFrames))
+			for j, fr := range reel.ReelFrames {
 				frames[j] = Frame{
-					FilmID:    int32(g.Reels[i].Film.Id),
-					ImagePath: fr.ImagePath,
+					FilmID:    fr.Frame.FilmID,
+					ImagePath: fr.Frame.ImagePath,
 				}
 			}
-			frameIds, err := s.repo.insertFrames(txCtx, frames)
+			frameIds[i], err = s.repo.insertFrames(txCtx, frames)
 			if err != nil {
 				return err
 			}
 
-			dbReelFrames := make([]dbgen.ReelFrame, len(g.Reels[i].ReelFrames))
+			dbReelFrames := make([]ReelFrame, len(g.Reels[i].ReelFrames))
 			for k, rf := range g.Reels[i].ReelFrames {
-				dbReelFrames[k] = dbgen.ReelFrame{
-					ReelID:     reelIds[i],
-					FrameID:    frameIds[k],
+				dbReelFrames[k] = ReelFrame{
 					Difficulty: rf.Difficulty,
 					Seq:        rf.Seq,
+					Frame:      Frame{ID: frameIds[i][k]},
 				}
 			}
-			reelFrameIds[i], err = s.repo.insertReelFrames(txCtx, dbReelFrames)
+			reelFrameIds[i], err = s.repo.insertReelFrames(txCtx, reelIds[i], dbReelFrames)
 			if err != nil {
 				return err
 			}
@@ -87,6 +88,7 @@ func (s *Service) SeedGame(ctx context.Context, g *Game) error {
 		g.Reels[i].ID = reelIds[i]
 		for j := range g.Reels[i].ReelFrames {
 			g.Reels[i].ReelFrames[j].ID = reelFrameIds[i][j]
+			g.Reels[i].ReelFrames[j].Frame.ID = frameIds[i][j]
 		}
 		for k := range g.Reels[i].Alternatives {
 			g.Reels[i].Alternatives[k].ID = alternativeIds[i][k]

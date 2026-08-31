@@ -11,7 +11,7 @@ RETURNING id;
 -- name: InsertFrames :batchone
 INSERT INTO frames (film_id, image_path)
 VALUES (sqlc.arg(film_id), sqlc.arg(image_path))
-ON CONFLICT DO NOTHING
+ON CONFLICT (image_path) DO UPDATE SET image_path = EXCLUDED.image_path
 RETURNING id;
 
 -- name: InsertReelFrames :batchone

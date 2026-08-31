@@ -98,7 +98,7 @@ func (b *InsertFilmBatchBatchResults) Close() error {
 const insertFrames = `-- name: InsertFrames :batchone
 INSERT INTO frames (film_id, image_path)
 VALUES ($1, $2)
-ON CONFLICT DO NOTHING
+ON CONFLICT (image_path) DO UPDATE SET image_path = EXCLUDED.image_path
 RETURNING id
 `
 
