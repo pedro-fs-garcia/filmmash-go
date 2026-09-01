@@ -1,9 +1,7 @@
 package freezeframe
 
 import (
-	"cmp"
 	"fmt"
-	"slices"
 	"strings"
 )
 
@@ -26,13 +24,33 @@ func (ve ValidationErrors) Error() string {
 	return strings.Join(msgs, "; ")
 }
 
+func (ve ValidationErrors) Unwrap() []error {
+	errs := make([]error, len(ve))
+	for i, v := range ve {
+		errs[i] = v
+	}
+	return errs
+}
+
+func prefixed(path string, errs ValidationErrors) ValidationErrors {
+	out := make(ValidationErrors, len(errs))
+	for i, e := range errs {
+		where := path
+		if e.Where != "" {
+			where += "." + e.Where
+		}
+		out[i] = Violation{where, e.Message}
+	}
+	return out
+}
+
 func (f *Frame) Validate() ValidationErrors {
 	var ve ValidationErrors
 	if f.ImagePath == "" {
 		ve = append(ve, Violation{"image_path", "must be set"})
 	}
 	if f.FilmID == 0 {
-		ve = append(ve, Violation{"film", "must be set"})
+		ve = append(ve, Violation{"film.id", "must be set"})
 	}
 	if len(ve) == 0 {
 		return nil
@@ -43,23 +61,15 @@ func (f *Frame) Validate() ValidationErrors {
 func (a *Alternative) Validate() ValidationErrors {
 	var ve ValidationErrors
 	if a.Seq < 1 || a.Seq > 4 {
-		ve = append(ve, Violation{"seq", "must be between 1 and 4"})
+		ve = append(ve, Violation{"seq", fmt.Sprintf("must be between 1 and 4, got %d", a.Seq)})
 	}
 	if a.Film.Id == 0 {
-		ve = append(ve, Violation{"film", "must be set"})
+		ve = append(ve, Violation{"film.id", "must be set"})
 	}
 	if len(ve) == 0 {
 		return nil
 	}
 	return ve
-}
-
-func prefixed(path string, errs ValidationErrors) ValidationErrors {
-	out := make(ValidationErrors, len(errs))
-	for i, e := range errs {
-		out[i] = Violation{path + "." + e.Where, e.Message}
-	}
-	return out
 }
 
 func (rf *ReelFrame) Validate() ValidationErrors {
@@ -75,7 +85,7 @@ func (rf *ReelFrame) Validate() ValidationErrors {
 		})
 	}
 
-	frameErrs := rf.Frame.Validate()
+	frameErrs := prefixed("frame", rf.Frame.Validate())
 	ve = append(ve, frameErrs...)
 
 	if len(ve) == 0 {
@@ -87,19 +97,14 @@ func (rf *ReelFrame) Validate() ValidationErrors {
 func (r *Reel) validateReelFrames() ValidationErrors {
 	var ve ValidationErrors
 
-	reelFrames := slices.Clone(r.ReelFrames)
-	slices.SortFunc(reelFrames, func(a, b ReelFrame) int {
-		return cmp.Compare(a.Seq, b.Seq)
-	})
-
-	seenPaths := make(map[string]bool, len(reelFrames))
-	for i, rf := range reelFrames {
-		path := fmt.Sprintf("reel_frames[%d]", i+1)
+	seenPaths := make(map[string]bool, len(r.ReelFrames))
+	for i, rf := range r.ReelFrames {
+		path := fmt.Sprintf("reel_frames[%d]", rf.Seq)
 
 		if rf.Seq != int16(i+1) {
 			ve = append(ve, Violation{
 				path + ".seq",
-				fmt.Sprintf("expected %d, got %d", i+1, rf.Seq),
+				fmt.Sprintf("expected seq = %d, got %d", i+1, rf.Seq),
 			})
 		}
 
@@ -118,7 +123,7 @@ func (r *Reel) validateReelFrames() ValidationErrors {
 		}
 		seenPaths[rf.Frame.ImagePath] = true
 
-		rfErrors := rf.Validate()
+		rfErrors := prefixed(path, rf.Validate())
 		ve = append(ve, rfErrors...)
 	}
 	if len(ve) == 0 {
@@ -130,20 +135,15 @@ func (r *Reel) validateReelFrames() ValidationErrors {
 func (r *Reel) validateAlternatives() ValidationErrors {
 	var ve ValidationErrors
 
-	alts := slices.Clone(r.Alternatives)
-	slices.SortFunc(alts, func(a, b Alternative) int {
-		return cmp.Compare(a.Seq, b.Seq)
-	})
-
-	seenFilms := make(map[int]bool, len(alts))
+	seenFilms := make(map[int]bool, len(r.Alternatives))
 	rightAns := 0
-	for i, a := range alts {
-		path := fmt.Sprintf("alternatives[%d]", i+1)
+	for i, a := range r.Alternatives {
+		path := fmt.Sprintf("alternatives[%d]", a.Seq)
 
 		if a.Seq != int16(i+1) {
 			ve = append(ve, Violation{
 				path + ".seq",
-				fmt.Sprintf("expected %d, got%d", i+1, a.Seq),
+				fmt.Sprintf("expected seq = %d, got %d", i+1, a.Seq),
 			})
 		}
 
@@ -158,12 +158,12 @@ func (r *Reel) validateAlternatives() ValidationErrors {
 		}
 		seenFilms[a.Film.Id] = true
 
-		altErrs := a.Validate()
+		altErrs := prefixed(path, a.Validate())
 		ve = append(ve, altErrs...)
 	}
 	if rightAns != 1 {
 		ve = append(ve, Violation{
-			"reel",
+			"alternatives",
 			fmt.Sprintf("reel must have exactly one right answer, got %d", rightAns),
 		})
 	}
@@ -186,7 +186,7 @@ func (r *Reel) Validate() ValidationErrors {
 	if len(r.ReelFrames) != 5 {
 		ve = append(ve, Violation{"reel_frames", fmt.Sprintf("must have exactly 5 frames, got %d", len(r.ReelFrames))})
 	}
-	rfErrs := prefixed("reel_frames", r.validateReelFrames())
+	rfErrs := r.validateReelFrames()
 	ve = append(ve, rfErrs...)
 
 	if len(r.Alternatives) != 4 {
@@ -195,7 +195,7 @@ func (r *Reel) Validate() ValidationErrors {
 			fmt.Sprintf("must have exactly 4 alternatives, got %d", len(r.Alternatives)),
 		})
 	}
-	altErrs := prefixed("alternatives", r.validateAlternatives())
+	altErrs := r.validateAlternatives()
 	ve = append(ve, altErrs...)
 
 	if len(ve) == 0 {
@@ -204,21 +204,16 @@ func (r *Reel) Validate() ValidationErrors {
 	return ve
 }
 
-func (g *Game) ValidateReels() ValidationErrors {
+func (g *Game) validateReels() ValidationErrors {
 	var ve ValidationErrors
 
 	if len(g.Reels) != 5 {
 		ve = append(ve, Violation{"reels", fmt.Sprintf("must have exactly 5 reels, got %d", len(g.Reels))})
 	}
 
-	ordReels := slices.Clone(g.Reels)
-	slices.SortFunc(ordReels, func(a, b Reel) int {
-		return cmp.Compare(a.Seq, b.Seq)
-	})
-
-	seenFilms := make(map[int]bool, len(ordReels))
+	seenFilms := make(map[int]bool, len(g.Reels))
 	for i, r := range g.Reels {
-		path := fmt.Sprintf("reels[%d]", i+1)
+		path := fmt.Sprintf("reels[%d]", r.Seq)
 
 		if r.Seq != int16(i+1) {
 			ve = append(ve, Violation{
@@ -229,13 +224,13 @@ func (g *Game) ValidateReels() ValidationErrors {
 
 		if seenFilms[r.Film.Id] {
 			ve = append(ve, Violation{
-				"reels",
+				path,
 				fmt.Sprintf("duplicate reel for film %d", r.Film.Id),
 			})
 		}
 		seenFilms[r.Film.Id] = true
 
-		reelErrs := r.Validate()
+		reelErrs := prefixed(path, r.Validate())
 		ve = append(ve, reelErrs...)
 	}
 	if len(ve) == 0 {
@@ -244,19 +239,19 @@ func (g *Game) ValidateReels() ValidationErrors {
 	return ve
 }
 
-func (g *Game) Validate() ValidationErrors {
+func (g *Game) Validate() error {
 	var ve ValidationErrors
 	if g.ValidAt.IsZero() {
 		ve = append(ve, Violation{
-			"valid_at",
+			"game.valid_at",
 			fmt.Sprintf("valid_at date must be set, got '%s'", g.ValidAt.String()),
 		})
 	}
-	reelErrs := prefixed("reels", g.ValidateReels())
+	reelErrs := prefixed("game", g.validateReels())
 	ve = append(ve, reelErrs...)
 
 	if len(ve) == 0 {
 		return nil
 	}
-	return ve
+	return fmt.Errorf("invalid game: %w", ve)
 }
