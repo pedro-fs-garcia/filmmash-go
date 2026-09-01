@@ -21,11 +21,11 @@ func NewService(logger *slog.Logger, repo *repository, txManager *database.TxMan
 }
 
 func (s *Service) SeedGame(ctx context.Context, g *Game) error {
-	var seedErr error
-	if seedErr = g.Validate(); seedErr != nil {
-		return seedErr
+	if err := g.Validate(); err != nil {
+		return err
 	}
 
+	var seedErr error
 	var gameId int32
 	var reelIds []int32
 	var alternativeIds = make([][]int32, len(g.Reels))
