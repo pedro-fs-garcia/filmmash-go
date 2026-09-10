@@ -1,70 +1,296 @@
 package freezeframe_test
 
 import (
-	"fmt"
+	"errors"
+	"filmmash/internal/film"
+	"filmmash/internal/freezeframe"
 	"strings"
 	"testing"
 	"time"
-
-	"filmmash/internal/film"
-	"filmmash/internal/freezeframe"
 )
 
-func buildFilm(id int) film.Film {
-	return film.Film{Id: id, Title: fmt.Sprintf("Film %d", id)}
+func TestFrameValidation(t *testing.T) {
+	t.Parallel()
+
+	t.Run("valid frame", func(t *testing.T) {
+		f := buildValidFrame(23, 4)
+		if err := f.Validate(); err != nil {
+			t.Fatalf("got %T, wanted no error", err)
+		}
+	})
+
+	t.Run("invalid film_id", func(t *testing.T) {
+		f := buildValidFrame(123, 4)
+		f.FilmID = 0
+		err := f.Validate()
+		if err == nil {
+			t.Fatalf("got no error")
+		}
+		if !errors.Is(err, freezeframe.ErrRequired) {
+			t.Fatalf("wrong error type; got %T, want %T", err, freezeframe.ErrRequired.Error())
+		}
+	})
+
+	t.Run("invalid image_path", func(t *testing.T) {
+		f := buildValidFrame(123, 4)
+		f.ImagePath = ""
+		err := f.Validate()
+		if err == nil {
+			t.Fatalf("got no error")
+		}
+		if !errors.Is(err, freezeframe.ErrRequired) {
+			t.Fatalf("wrong error type. got %T, want %T", err, freezeframe.ErrRequired.Error())
+		}
+	})
 }
 
-func buildValidFrame(filmID int32, seq int16) freezeframe.Frame {
-	return freezeframe.Frame{
-		FilmID:    filmID,
-		ImagePath: fmt.Sprintf("film%d/frame%d.jpg", filmID, seq),
-	}
+func TestAlternativeValidation(t *testing.T) {
+	t.Parallel()
+
+	t.Run("valid alternative", func(t *testing.T) {
+		f := buildFilm(34)
+		a := buildValidAlternative(1, f)
+		if err := a.Validate(); err != nil {
+			t.Fatalf("got %T, wanted no error", err)
+		}
+	})
+
+	t.Run("invalid film_id", func(t *testing.T) {
+		f := buildFilm(0)
+		a := buildValidAlternative(23, f)
+		err := a.Validate()
+		if err == nil {
+			t.Fatalf("got no error")
+		}
+		if !errors.Is(err, freezeframe.ErrRequired) {
+			t.Fatalf("wrong error type; got %T, want %T", err, freezeframe.ErrRequired.Error())
+		}
+	})
+
+	t.Run("invalid seq", func(t *testing.T) {
+		f := buildFilm(34)
+		a := buildValidAlternative(9, f)
+		err := a.Validate()
+		if err == nil {
+			t.Fatalf("got no error")
+		}
+		if !errors.Is(err, freezeframe.ErrOutOfRange) {
+			t.Fatalf("wrong error type; got %T, want %T", err, freezeframe.ErrOutOfRange.Error())
+		}
+	})
 }
 
-func buildValidReelFrame(filmID int32, seq int16) freezeframe.ReelFrame {
-	return freezeframe.ReelFrame{
-		Seq:        seq,
-		Difficulty: seq * 2,
-		Frame:      buildValidFrame(filmID, seq),
-	}
+func TestReelFrameValidation(t *testing.T) {
+	t.Parallel()
+
+	t.Run("valid ReelFrame", func(t *testing.T) {
+		rf := buildValidReelFrame(32, 1)
+		if err := rf.Validate(); err != nil {
+			t.Errorf("got %T, wanted no error", err)
+		}
+	})
+
+	t.Run("invalid seq", func(t *testing.T) {
+		fr := buildValidReelFrame(32, 1)
+		fr.Seq = 6
+		err := fr.Validate()
+		if err == nil {
+			t.Fatalf("got no error, wanted %T", freezeframe.ErrOutOfRange)
+		}
+		if !errors.Is(err, freezeframe.ErrOutOfRange) {
+			t.Fatalf("wrong error type; got %T, wanted %T", err, freezeframe.ErrOutOfRange.Error())
+		}
+	})
 }
 
-func buildValidAlternative(seq int16, f film.Film) freezeframe.Alternative {
-	return freezeframe.Alternative{
-		Seq:  seq,
-		Film: f,
-	}
+func TestReelValidation(t *testing.T) {
+	t.Parallel()
+
+	t.Run("valid reel", func(t *testing.T) {
+		r := buildValidReel(3)
+		if err := r.Validate(); err != nil {
+			t.Fatalf("got %v, wanted no error", err)
+		}
+	})
+
+	t.Run("invalid seq", func(t *testing.T) {
+		r := buildValidReel(3)
+		r.Seq = 9
+		err := r.Validate()
+		if err == nil {
+			t.Fatalf("got no error")
+		}
+		if !errors.Is(err, freezeframe.ErrOutOfRange) {
+			t.Fatalf("wrong error type; got %T, want %T", err, freezeframe.ErrOutOfRange.Error())
+		}
+	})
+
+	t.Run("missing film", func(t *testing.T) {
+		r := buildValidReel(3)
+		r.Film = film.Film{}
+		err := r.Validate()
+		if err == nil {
+			t.Fatalf("got no error")
+		}
+		if !errors.Is(err, freezeframe.ErrRequired) {
+			t.Fatalf("wrong error type; got %T, want %T", err, freezeframe.ErrRequired.Error())
+		}
+	})
+
+	t.Run("wrong reel_frame count", func(t *testing.T) {
+		r := buildValidReel(3)
+		r.ReelFrames = r.ReelFrames[:4]
+		err := r.Validate()
+		if err == nil {
+			t.Fatalf("got no error")
+		}
+		if !errors.Is(err, freezeframe.ErrWrongCount) {
+			t.Fatalf("wrong error type; got %T, want %T", err, freezeframe.ErrWrongCount.Error())
+		}
+	})
+
+	t.Run("reel_frames out of order", func(t *testing.T) {
+		r := buildValidReel(3)
+		r.ReelFrames[0].Seq, r.ReelFrames[1].Seq = r.ReelFrames[1].Seq, r.ReelFrames[0].Seq
+		err := r.Validate()
+		if err == nil {
+			t.Fatalf("got no error")
+		}
+		if !errors.Is(err, freezeframe.ErrOutOfOrder) {
+			t.Fatalf("wrong error type; got %T, want %T", err, freezeframe.ErrOutOfOrder.Error())
+		}
+	})
+
+	t.Run("frame from another film", func(t *testing.T) {
+		r := buildValidReel(3)
+		r.ReelFrames[2].Frame.FilmID = 99999
+		err := r.Validate()
+		if err == nil {
+			t.Fatalf("got no error")
+		}
+		if !errors.Is(err, freezeframe.ErrMismatch) {
+			t.Fatalf("wrong error type; got %T, want %T", err, freezeframe.ErrMismatch.Error())
+		}
+	})
+
+	t.Run("duplicate frame image", func(t *testing.T) {
+		r := buildValidReel(3)
+		r.ReelFrames[1].Frame.ImagePath = r.ReelFrames[0].Frame.ImagePath
+		err := r.Validate()
+		if err == nil {
+			t.Fatalf("got no error")
+		}
+		if !errors.Is(err, freezeframe.ErrDuplicate) {
+			t.Fatalf("wrong error type; got %T, want %T", err, freezeframe.ErrDuplicate.Error())
+		}
+	})
+
+	t.Run("wrong alternative count", func(t *testing.T) {
+		r := buildValidReel(3)
+		r.Alternatives = r.Alternatives[:3]
+		err := r.Validate()
+		if err == nil {
+			t.Fatalf("got no error")
+		}
+		if !errors.Is(err, freezeframe.ErrWrongCount) {
+			t.Fatalf("wrong error type; got %T, want %T", err, freezeframe.ErrWrongCount.Error())
+		}
+	})
+
+	t.Run("alternatives out of order", func(t *testing.T) {
+		r := buildValidReel(3)
+		r.Alternatives[0].Seq, r.Alternatives[1].Seq = r.Alternatives[1].Seq, r.Alternatives[0].Seq
+		err := r.Validate()
+		if err == nil {
+			t.Fatalf("got no error")
+		}
+		if !errors.Is(err, freezeframe.ErrOutOfOrder) {
+			t.Fatalf("wrong error type; got %T, want %T", err, freezeframe.ErrOutOfOrder.Error())
+		}
+	})
+
+	t.Run("no right answer", func(t *testing.T) {
+		r := buildValidReel(3)
+		r.Alternatives[0].Film = buildFilm(9999)
+		err := r.Validate()
+		if err == nil {
+			t.Fatalf("got no error")
+		}
+		if !errors.Is(err, freezeframe.ErrWrongCount) {
+			t.Fatalf("wrong error type; got %T, want %T", err, freezeframe.ErrWrongCount.Error())
+		}
+	})
+
+	t.Run("duplicate alternative film", func(t *testing.T) {
+		r := buildValidReel(3)
+		r.Alternatives[3].Film = r.Alternatives[2].Film
+		err := r.Validate()
+		if err == nil {
+			t.Fatalf("got no error")
+		}
+		if !errors.Is(err, freezeframe.ErrDuplicate) {
+			t.Fatalf("wrong error type; got %T, want %T", err, freezeframe.ErrDuplicate.Error())
+		}
+	})
 }
 
-func buildValidReel(seq int16) freezeframe.Reel {
-	f := buildFilm(int(seq) * 10)
-	reel := freezeframe.Reel{
-		Seq:  seq,
-		Film: f,
-	}
+func TestGameValidation(t *testing.T) {
+	t.Parallel()
 
-	for i := int16(1); i <= 5; i++ {
-		reel.ReelFrames = append(reel.ReelFrames, buildValidReelFrame(int32(f.Id), i))
-	}
+	t.Run("valid game", func(t *testing.T) {
+		g := buildValidGame()
+		if err := g.Validate(); err != nil {
+			t.Fatalf("got %v, wanted no error", err)
+		}
+	})
 
-	reel.Alternatives = append(reel.Alternatives, buildValidAlternative(1, f))
-	for i := int16(2); i <= 4; i++ {
-		reel.Alternatives = append(reel.Alternatives, buildValidAlternative(i, buildFilm(f.Id+int(i))))
-	}
+	t.Run("missing valid_at", func(t *testing.T) {
+		g := buildValidGame()
+		g.ValidAt = time.Time{}
+		err := g.Validate()
+		if err == nil {
+			t.Fatalf("got no error")
+		}
+		if !errors.Is(err, freezeframe.ErrRequired) {
+			t.Fatalf("wrong error type; got %T, want %T", err, freezeframe.ErrRequired.Error())
+		}
+	})
 
-	return reel
-}
+	t.Run("wrong reel count", func(t *testing.T) {
+		g := buildValidGame()
+		g.Reels = g.Reels[:4]
+		err := g.Validate()
+		if err == nil {
+			t.Fatalf("got no error")
+		}
+		if !errors.Is(err, freezeframe.ErrWrongCount) {
+			t.Fatalf("wrong error type; got %T, want %T", err, freezeframe.ErrWrongCount.Error())
+		}
+	})
 
-func buildValidGame() freezeframe.Game {
-	g := freezeframe.Game{
-		ValidAt: time.Date(2026, time.August, 31, 0, 0, 0, 0, time.UTC),
-	}
+	t.Run("reels out of order", func(t *testing.T) {
+		g := buildValidGame()
+		g.Reels[0].Seq, g.Reels[1].Seq = g.Reels[1].Seq, g.Reels[0].Seq
+		err := g.Validate()
+		if err == nil {
+			t.Fatalf("got no error")
+		}
+		if !errors.Is(err, freezeframe.ErrOutOfOrder) {
+			t.Fatalf("wrong error type; got %T, want %T", err, freezeframe.ErrOutOfOrder.Error())
+		}
+	})
 
-	for i := int16(1); i <= 5; i++ {
-		g.Reels = append(g.Reels, buildValidReel(i))
-	}
-
-	return g
+	t.Run("duplicate reel film", func(t *testing.T) {
+		g := buildValidGame()
+		g.Reels[1].Film = g.Reels[0].Film
+		err := g.Validate()
+		if err == nil {
+			t.Fatalf("got no error")
+		}
+		if !errors.Is(err, freezeframe.ErrDuplicate) {
+			t.Fatalf("wrong error type; got %T, want %T", err, freezeframe.ErrDuplicate.Error())
+		}
+	})
 }
 
 func TestErrorReportIsReadable(t *testing.T) {
@@ -72,17 +298,19 @@ func TestErrorReportIsReadable(t *testing.T) {
 
 	g := buildValidGame()
 	g.ValidAt = time.Time{}
-	g.Reels[0].ReelFrames[1].Frame.ImagePath = ""       // frame problem
-	g.Reels[0].ReelFrames[2].Difficulty = 42            // reel frame problem
-	g.Reels[1].Alternatives[0].Film = film.Film{Id: 77} // reel loses its right answer
-	g.Reels[2].Alternatives[3].Seq = 9                  // alternative problem
-	g.Reels[3].Film = g.Reels[2].Film                   // duplicate film across reels
-	g.Reels = g.Reels[:4]                               // and one reel short
+	g.Reels[0].ReelFrames[1].Frame.ImagePath = ""
+	g.Reels[0].ReelFrames[2].Difficulty = 42
+	g.Reels[1].Alternatives[0].Film = film.Film{Id: 77}
+	g.Reels[2].Alternatives[3].Seq = 9
+	g.Reels[3].Film = g.Reels[2].Film
+	g.Reels = g.Reels[:4]
 
 	err := g.Validate()
 	if err == nil {
 		t.Fatal("got no error, want a report")
 	}
-	errs := strings.Split(err.Error(), ";")
-	t.Logf("\n%v", errs)
+	t.Log(err.Error())
+	for _, line := range strings.Split(err.Error(), "; ") {
+		t.Log(line)
+	}
 }
