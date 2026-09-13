@@ -13,15 +13,15 @@ type Director struct {
 }
 
 type Film struct {
-	Id          int
-	Title       string
-	Year        int
-	Director    Director
-	ImagePath   string
-	Popularity  float64
-	VoteAverage float64
-	Rating      float64
-	Duelcount   int32
+	Id          int      `json:"id"`
+	Title       string   `json:"title"`
+	Year        int      `json:"year"`
+	Director    Director `json:"director"`
+	ImagePath   string   `json:"image_path"`
+	Popularity  float64  `json:"popularity"`
+	VoteAverage float64  `json:"vote_average"`
+	Rating      float64  `json:"rating"`
+	Duelcount   int32    `json:"duel_count"`
 }
 
 type FilmRating struct {

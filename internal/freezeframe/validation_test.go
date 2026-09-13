@@ -13,14 +13,14 @@ func TestFrameValidation(t *testing.T) {
 	t.Parallel()
 
 	t.Run("valid frame", func(t *testing.T) {
-		f := buildValidFrame(23, 4)
+		f := BuildValidFrame(23, 4)
 		if err := f.Validate(); err != nil {
 			t.Fatalf("got %T, wanted no error", err)
 		}
 	})
 
 	t.Run("invalid film_id", func(t *testing.T) {
-		f := buildValidFrame(123, 4)
+		f := BuildValidFrame(123, 4)
 		f.FilmID = 0
 		err := f.Validate()
 		if err == nil {
@@ -32,7 +32,7 @@ func TestFrameValidation(t *testing.T) {
 	})
 
 	t.Run("invalid image_path", func(t *testing.T) {
-		f := buildValidFrame(123, 4)
+		f := BuildValidFrame(123, 4)
 		f.ImagePath = ""
 		err := f.Validate()
 		if err == nil {
@@ -48,16 +48,16 @@ func TestAlternativeValidation(t *testing.T) {
 	t.Parallel()
 
 	t.Run("valid alternative", func(t *testing.T) {
-		f := buildFilm(34)
-		a := buildValidAlternative(1, f)
+		f := BuildFilm(34)
+		a := BuildValidAlternative(1, f)
 		if err := a.Validate(); err != nil {
 			t.Fatalf("got %T, wanted no error", err)
 		}
 	})
 
 	t.Run("invalid film_id", func(t *testing.T) {
-		f := buildFilm(0)
-		a := buildValidAlternative(23, f)
+		f := BuildFilm(0)
+		a := BuildValidAlternative(23, f)
 		err := a.Validate()
 		if err == nil {
 			t.Fatalf("got no error")
@@ -68,8 +68,8 @@ func TestAlternativeValidation(t *testing.T) {
 	})
 
 	t.Run("invalid seq", func(t *testing.T) {
-		f := buildFilm(34)
-		a := buildValidAlternative(9, f)
+		f := BuildFilm(34)
+		a := BuildValidAlternative(9, f)
 		err := a.Validate()
 		if err == nil {
 			t.Fatalf("got no error")
@@ -84,14 +84,14 @@ func TestReelFrameValidation(t *testing.T) {
 	t.Parallel()
 
 	t.Run("valid ReelFrame", func(t *testing.T) {
-		rf := buildValidReelFrame(32, 1)
+		rf := BuildValidReelFrame(32, 1)
 		if err := rf.Validate(); err != nil {
 			t.Errorf("got %T, wanted no error", err)
 		}
 	})
 
 	t.Run("invalid seq", func(t *testing.T) {
-		fr := buildValidReelFrame(32, 1)
+		fr := BuildValidReelFrame(32, 1)
 		fr.Seq = 6
 		err := fr.Validate()
 		if err == nil {
@@ -107,14 +107,14 @@ func TestReelValidation(t *testing.T) {
 	t.Parallel()
 
 	t.Run("valid reel", func(t *testing.T) {
-		r := buildValidReel(3)
+		r := BuildValidReel(3)
 		if err := r.Validate(); err != nil {
 			t.Fatalf("got %v, wanted no error", err)
 		}
 	})
 
 	t.Run("invalid seq", func(t *testing.T) {
-		r := buildValidReel(3)
+		r := BuildValidReel(3)
 		r.Seq = 9
 		err := r.Validate()
 		if err == nil {
@@ -126,7 +126,7 @@ func TestReelValidation(t *testing.T) {
 	})
 
 	t.Run("missing film", func(t *testing.T) {
-		r := buildValidReel(3)
+		r := BuildValidReel(3)
 		r.Film = film.Film{}
 		err := r.Validate()
 		if err == nil {
@@ -138,7 +138,7 @@ func TestReelValidation(t *testing.T) {
 	})
 
 	t.Run("wrong reel_frame count", func(t *testing.T) {
-		r := buildValidReel(3)
+		r := BuildValidReel(3)
 		r.ReelFrames = r.ReelFrames[:4]
 		err := r.Validate()
 		if err == nil {
@@ -150,7 +150,7 @@ func TestReelValidation(t *testing.T) {
 	})
 
 	t.Run("reel_frames out of order", func(t *testing.T) {
-		r := buildValidReel(3)
+		r := BuildValidReel(3)
 		r.ReelFrames[0].Seq, r.ReelFrames[1].Seq = r.ReelFrames[1].Seq, r.ReelFrames[0].Seq
 		err := r.Validate()
 		if err == nil {
@@ -162,7 +162,7 @@ func TestReelValidation(t *testing.T) {
 	})
 
 	t.Run("frame from another film", func(t *testing.T) {
-		r := buildValidReel(3)
+		r := BuildValidReel(3)
 		r.ReelFrames[2].Frame.FilmID = 99999
 		err := r.Validate()
 		if err == nil {
@@ -174,7 +174,7 @@ func TestReelValidation(t *testing.T) {
 	})
 
 	t.Run("duplicate frame image", func(t *testing.T) {
-		r := buildValidReel(3)
+		r := BuildValidReel(3)
 		r.ReelFrames[1].Frame.ImagePath = r.ReelFrames[0].Frame.ImagePath
 		err := r.Validate()
 		if err == nil {
@@ -186,7 +186,7 @@ func TestReelValidation(t *testing.T) {
 	})
 
 	t.Run("wrong alternative count", func(t *testing.T) {
-		r := buildValidReel(3)
+		r := BuildValidReel(3)
 		r.Alternatives = r.Alternatives[:3]
 		err := r.Validate()
 		if err == nil {
@@ -198,7 +198,7 @@ func TestReelValidation(t *testing.T) {
 	})
 
 	t.Run("alternatives out of order", func(t *testing.T) {
-		r := buildValidReel(3)
+		r := BuildValidReel(3)
 		r.Alternatives[0].Seq, r.Alternatives[1].Seq = r.Alternatives[1].Seq, r.Alternatives[0].Seq
 		err := r.Validate()
 		if err == nil {
@@ -210,8 +210,8 @@ func TestReelValidation(t *testing.T) {
 	})
 
 	t.Run("no right answer", func(t *testing.T) {
-		r := buildValidReel(3)
-		r.Alternatives[0].Film = buildFilm(9999)
+		r := BuildValidReel(3)
+		r.Alternatives[0].Film = BuildFilm(9999)
 		err := r.Validate()
 		if err == nil {
 			t.Fatalf("got no error")
@@ -222,7 +222,7 @@ func TestReelValidation(t *testing.T) {
 	})
 
 	t.Run("duplicate alternative film", func(t *testing.T) {
-		r := buildValidReel(3)
+		r := BuildValidReel(3)
 		r.Alternatives[3].Film = r.Alternatives[2].Film
 		err := r.Validate()
 		if err == nil {
@@ -238,14 +238,14 @@ func TestGameValidation(t *testing.T) {
 	t.Parallel()
 
 	t.Run("valid game", func(t *testing.T) {
-		g := buildValidGame()
+		g := BuildValidGame()
 		if err := g.Validate(); err != nil {
 			t.Fatalf("got %v, wanted no error", err)
 		}
 	})
 
 	t.Run("missing valid_at", func(t *testing.T) {
-		g := buildValidGame()
+		g := BuildValidGame()
 		g.ValidAt = time.Time{}
 		err := g.Validate()
 		if err == nil {
@@ -257,7 +257,7 @@ func TestGameValidation(t *testing.T) {
 	})
 
 	t.Run("wrong reel count", func(t *testing.T) {
-		g := buildValidGame()
+		g := BuildValidGame()
 		g.Reels = g.Reels[:4]
 		err := g.Validate()
 		if err == nil {
@@ -269,7 +269,7 @@ func TestGameValidation(t *testing.T) {
 	})
 
 	t.Run("reels out of order", func(t *testing.T) {
-		g := buildValidGame()
+		g := BuildValidGame()
 		g.Reels[0].Seq, g.Reels[1].Seq = g.Reels[1].Seq, g.Reels[0].Seq
 		err := g.Validate()
 		if err == nil {
@@ -281,7 +281,7 @@ func TestGameValidation(t *testing.T) {
 	})
 
 	t.Run("duplicate reel film", func(t *testing.T) {
-		g := buildValidGame()
+		g := BuildValidGame()
 		g.Reels[1].Film = g.Reels[0].Film
 		err := g.Validate()
 		if err == nil {
@@ -296,7 +296,7 @@ func TestGameValidation(t *testing.T) {
 func TestErrorReportIsReadable(t *testing.T) {
 	t.Parallel()
 
-	g := buildValidGame()
+	g := BuildValidGame()
 	g.ValidAt = time.Time{}
 	g.Reels[0].ReelFrames[1].Frame.ImagePath = ""
 	g.Reels[0].ReelFrames[2].Difficulty = 42

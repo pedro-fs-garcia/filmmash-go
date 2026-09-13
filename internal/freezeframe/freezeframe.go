@@ -8,46 +8,46 @@ import (
 )
 
 type Game struct {
-	ID      int32
-	ValidAt time.Time
-	Reels   []Reel
+	ID      int32     `json:"id"`
+	ValidAt time.Time `json:"valid_at"`
+	Reels   []Reel    `json:"reels"`
 }
 
 type Reel struct {
-	ID  int32
-	Seq int16
+	ID  int32 `json:"id"`
+	Seq int16 `json:"seq"`
 
-	Film         film.Film
-	ReelFrames   []ReelFrame
-	Alternatives []Alternative
+	Film         film.Film     `json:"film"`
+	ReelFrames   []ReelFrame   `json:"reel_frames"`
+	Alternatives []Alternative `json:"alternatives"`
 }
 
 type Frame struct {
-	ID        int32
-	FilmID    int32
-	ImagePath string
+	ID        int32  `json:"id"`
+	FilmID    int32  `json:"film_id"`
+	ImagePath string `json:"image_path"`
 }
 
 type ReelFrame struct {
-	ID         int32
-	Seq        int16
-	Difficulty int16
-	Frame      Frame
+	ID         int32 `json:"id"`
+	Seq        int16 `json:"seq"`
+	Difficulty int16 `json:"difficulty"`
+	Frame      Frame `json:"frame"`
 }
 
 type Alternative struct {
-	ID   int32
-	Seq  int16
-	Film film.Film
+	ID   int32     `json:"id"`
+	Seq  int16     `json:"seq"`
+	Film film.Film `json:"film"`
 }
 
 type Answer struct {
-	ID                int32
-	ReelID            int32
-	ReelAlternativeID int32
-	UserID            uuid.UUID
-	FramesRevealed    int16
-	CreatedAt         time.Time
+	ID                int32     `json:"id"`
+	ReelID            int32     `json:"reel_id"`
+	ReelAlternativeID int32     `json:"reel_alternative_id"`
+	UserID            uuid.UUID `json:"user_id"`
+	FramesRevealed    int16     `json:"frames_revealed"`
+	CreatedAt         time.Time `json:"created_at"`
 }
 
 type Round struct {

@@ -24,7 +24,7 @@ func (r *repository) queries(ctx context.Context) *dbgen.Queries {
 	return dbgen.New(database.ExtractTx(ctx, r.pool))
 }
 
-func (r *repository) insertGame(ctx context.Context, g Game) (int32, error) {
+func (r *repository) InsertGame(ctx context.Context, g Game) (int32, error) {
 	id, err := r.queries(ctx).InsertGame(ctx, pgtype.Date{Time: g.ValidAt, Valid: true})
 	if err != nil {
 		return 0, database.ParseDBError("inserting game", err)
@@ -32,7 +32,7 @@ func (r *repository) insertGame(ctx context.Context, g Game) (int32, error) {
 	return id, nil
 }
 
-func (r *repository) insertReels(ctx context.Context, gameId int32, reels []Reel) ([]int32, error) {
+func (r *repository) InsertReels(ctx context.Context, gameId int32, reels []Reel) ([]int32, error) {
 	if len(reels) == 0 {
 		return nil, nil
 	}
@@ -72,7 +72,7 @@ func (r *repository) insertReels(ctx context.Context, gameId int32, reels []Reel
 	return ids, nil
 }
 
-func (r *repository) insertReelAlternatives(ctx context.Context, reelId int32, alts []Alternative) ([]int32, error) {
+func (r *repository) InsertReelAlternatives(ctx context.Context, reelId int32, alts []Alternative) ([]int32, error) {
 	if len(alts) == 0 {
 		return nil, nil
 	}
@@ -112,7 +112,7 @@ func (r *repository) insertReelAlternatives(ctx context.Context, reelId int32, a
 	return ids, nil
 }
 
-func (r *repository) insertFrames(ctx context.Context, frames []Frame) ([]int32, error) {
+func (r *repository) InsertFrames(ctx context.Context, frames []Frame) ([]int32, error) {
 	if len(frames) == 0 {
 		return nil, nil
 	}
@@ -151,7 +151,7 @@ func (r *repository) insertFrames(ctx context.Context, frames []Frame) ([]int32,
 	return ids, nil
 }
 
-func (r *repository) insertReelFrames(ctx context.Context, reelId int32, reelFrames []ReelFrame) ([]int32, error) {
+func (r *repository) InsertReelFrames(ctx context.Context, reelId int32, reelFrames []ReelFrame) ([]int32, error) {
 	if len(reelFrames) == 0 {
 		return nil, nil
 	}

@@ -34,12 +34,12 @@ func (s *Service) SeedGame(ctx context.Context, g *Game) error {
 
 	seedErr = s.txManager.ExecTx(ctx, func(txCtx context.Context) error {
 		var err error
-		gameId, err = s.repo.insertGame(txCtx, *g)
+		gameId, err = s.repo.InsertGame(txCtx, *g)
 		if err != nil {
 			return err
 		}
 
-		reelIds, err = s.repo.insertReels(txCtx, gameId, g.Reels)
+		reelIds, err = s.repo.InsertReels(txCtx, gameId, g.Reels)
 		if err != nil {
 			return err
 		}
@@ -47,7 +47,7 @@ func (s *Service) SeedGame(ctx context.Context, g *Game) error {
 		for i := range g.Reels {
 			reel := &g.Reels[i]
 
-			alternativeIds[i], err = s.repo.insertReelAlternatives(txCtx, reelIds[i], reel.Alternatives)
+			alternativeIds[i], err = s.repo.InsertReelAlternatives(txCtx, reelIds[i], reel.Alternatives)
 			if err != nil {
 				return err
 			}
@@ -59,7 +59,7 @@ func (s *Service) SeedGame(ctx context.Context, g *Game) error {
 					ImagePath: fr.Frame.ImagePath,
 				}
 			}
-			frameIds[i], err = s.repo.insertFrames(txCtx, frames)
+			frameIds[i], err = s.repo.InsertFrames(txCtx, frames)
 			if err != nil {
 				return err
 			}
@@ -72,7 +72,7 @@ func (s *Service) SeedGame(ctx context.Context, g *Game) error {
 					Frame:      Frame{ID: frameIds[i][k]},
 				}
 			}
-			reelFrameIds[i], err = s.repo.insertReelFrames(txCtx, reelIds[i], dbReelFrames)
+			reelFrameIds[i], err = s.repo.InsertReelFrames(txCtx, reelIds[i], dbReelFrames)
 			if err != nil {
 				return err
 			}

@@ -68,6 +68,10 @@ func NewRouter(
 			r.Get("/duel/from/{film_id}", duelHandler.DuelFromFilm)
 		})
 
+		r.Route("/api", func(r chi.Router) {
+			r.Post("/freezeframe", freezeFrameHandler.CreateGame)
+		})
+
 		r.Route("/admin", func(r chi.Router) {
 			r.Use(authService.SessionCtx)
 			r.Use(auth.RequiresRole("admin"))

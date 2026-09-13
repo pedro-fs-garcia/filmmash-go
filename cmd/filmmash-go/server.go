@@ -107,7 +107,9 @@ func initRouter(
 	hcfg := auth.NewHandlerConfig("/ui", "/ui/films", cfg.ZitadelBaseURL+"/ui/console/users/me")
 	authHandler := auth.NewHandler(logger, authService, idp, oidcFlowCodec, hcfg)
 
-	freezeFrameHandler := freezeframe.NewHandler(logger)
+	freezeFrameRepo := freezeframe.NewRepository(pool)
+	freezeframeService := freezeframe.NewService(logger, freezeFrameRepo, txm)
+	freezeFrameHandler := freezeframe.NewHandler(logger, freezeframeService)
 
 	adminRepo := admin.NewRepository(pool)
 	adminService := admin.NewService(adminRepo, idp, zClient, tmdbClient, filmService)
