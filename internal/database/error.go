@@ -11,6 +11,7 @@ import (
 var ErrNotFound = errors.New("resource not found")
 var ErrDuplicateEntry = errors.New("register already exists")
 var ErrInvalidInput = errors.New("invalid input value")
+var ErrForeignKeyViolation = errors.New("invalid reference")
 var ErrMissingData = errors.New("missing required field")
 
 func ParseDBError(ctxMsg string, err error) error {
@@ -27,6 +28,8 @@ func ParseDBError(ctxMsg string, err error) error {
 		switch pgErr.Code {
 		case "23505":
 			return fmt.Errorf("%s: %w [internal: %w]", ctxMsg, ErrDuplicateEntry, err)
+		case "23503":
+			return fmt.Errorf("%s: %w [internal: %w]", ctxMsg, ErrForeignKeyViolation, err)
 		case "23514":
 			return fmt.Errorf("%s: %w [internal]: %w", ctxMsg, ErrInvalidInput, err)
 		case "23502":

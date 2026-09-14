@@ -58,6 +58,10 @@ func rollback(ctx context.Context, tx pgx.Tx, method string) {
 }
 
 func (tm *TxManager) ExecTx(ctx context.Context, fn func(ctx context.Context) error) (err error) {
+	if _, alreadyInTx := ctx.Value(txKey{}).(pgx.Tx); alreadyInTx {
+		return fn(ctx)
+	}
+
 	tx, err := tm.pool.Begin(ctx)
 	if err != nil {
 		return err

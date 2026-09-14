@@ -8,11 +8,9 @@ SELECT films.id, films.title, films.release_year, films.image_path, films.rating
     directors.id AS director_id, directors.name AS director_name
 FROM films
 JOIN directors ON films.director_id = directors.id
-WHERE films.id IN (
-    SELECT film_a_id FROM duels WHERE duels.id = $1
-    UNION
-    SELECT film_b_id FROM duels WHERE duels.id = $1
-);
+JOIN duels ON duels.id = $1
+WHERE films.id IN (duels.film_a_id, duels.film_b_id)
+ORDER BY films.id <> duels.film_a_id;
 
 -- name: GetDuelRatingsForUpdate :many
 SELECT id, rating, duel_count
