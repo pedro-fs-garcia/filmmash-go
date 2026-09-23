@@ -40,7 +40,8 @@ test-db-up: ## Start the postgres container the tests need
 	docker compose --profile development -f docker-compose.yaml -f docker-compose.dev.yaml up -d --wait postgres
 
 migrate-test-db: ## Apply migrations to the test database
-	goose -env=".env.test" up
+	goose -env=".env.test" up -count=1
+	# docker exec filmmash-go-postgres-1 goose -dir /migrations postgres "postgres://localhost/filmmash_db_test" up
 
 create-test-db: ## Create the test database if it does not exist
 	@set -a; . ./.env.test; set +a; \
@@ -51,7 +52,7 @@ create-test-db: ## Create the test database if it does not exist
 		-c "CREATE DATABASE \"$$POSTGRES_DB_NAME\""
 
 test: create-test-db migrate-test-db ## Run the test suite
-	go test ./...
+	go test -p 1 ./...
 
 lint: ## Run golangci-lint
 	golangci-lint run ./...
