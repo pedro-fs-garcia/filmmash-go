@@ -12,6 +12,183 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const getGame = `-- name: GetGame :one
+SELECT id, valid_at FROM games WHERE id = $1
+`
+
+type GetGameRow struct {
+	ID      int32
+	ValidAt pgtype.Date
+}
+
+func (q *Queries) GetGame(ctx context.Context, gameID int32) (GetGameRow, error) {
+	row := q.db.QueryRow(ctx, getGame, gameID)
+	var i GetGameRow
+	err := row.Scan(&i.ID, &i.ValidAt)
+	return i, err
+}
+
+const getGameByDate = `-- name: GetGameByDate :many
+SELECT id, valid_at FROM games WHERE valid_at = $1
+`
+
+type GetGameByDateRow struct {
+	ID      int32
+	ValidAt pgtype.Date
+}
+
+func (q *Queries) GetGameByDate(ctx context.Context, validAt pgtype.Date) ([]GetGameByDateRow, error) {
+	rows, err := q.db.Query(ctx, getGameByDate, validAt)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetGameByDateRow
+	for rows.Next() {
+		var i GetGameByDateRow
+		if err := rows.Scan(&i.ID, &i.ValidAt); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getGameReels = `-- name: GetGameReels :many
+SELECT r.id, r.seq, f.id AS film_id, f.title AS film_title, f.release_year AS film_year
+FROM reels r
+JOIN films f ON f.id = r.film_id
+WHERE r.game_id = $1
+ORDER BY r.seq
+`
+
+type GetGameReelsRow struct {
+	ID        int32
+	Seq       int16
+	FilmID    int32
+	FilmTitle string
+	FilmYear  int16
+}
+
+func (q *Queries) GetGameReels(ctx context.Context, gameID int32) ([]GetGameReelsRow, error) {
+	rows, err := q.db.Query(ctx, getGameReels, gameID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetGameReelsRow
+	for rows.Next() {
+		var i GetGameReelsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Seq,
+			&i.FilmID,
+			&i.FilmTitle,
+			&i.FilmYear,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getReelAlternatives = `-- name: GetReelAlternatives :many
+SELECT a.id, a.reel_id, a.seq, f.id AS film_id, f.title AS film_title, f.release_year AS film_year
+FROM reel_alternatives a
+JOIN reels r ON r.id = a.reel_id
+JOIN films f ON f.id = a.film_id
+WHERE r.game_id = $1
+ORDER BY a.reel_id, a.seq
+`
+
+type GetReelAlternativesRow struct {
+	ID        int32
+	ReelID    int32
+	Seq       int16
+	FilmID    int32
+	FilmTitle string
+	FilmYear  int16
+}
+
+func (q *Queries) GetReelAlternatives(ctx context.Context, gameID int32) ([]GetReelAlternativesRow, error) {
+	rows, err := q.db.Query(ctx, getReelAlternatives, gameID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetReelAlternativesRow
+	for rows.Next() {
+		var i GetReelAlternativesRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.ReelID,
+			&i.Seq,
+			&i.FilmID,
+			&i.FilmTitle,
+			&i.FilmYear,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getReelFrames = `-- name: GetReelFrames :many
+SELECT rf.reel_id AS reel_id, rf.id, rf.difficulty, rf.seq, f.id AS frame_id, f.image_path AS image_path
+FROM reel_frames rf
+JOIN frames f ON f.id = rf.frame_id
+JOIN reels r ON r.id = rf.reel_id
+WHERE r.game_id = $1
+ORDER BY rf.reel_id, rf.seq
+`
+
+type GetReelFramesRow struct {
+	ReelID     int32
+	ID         int32
+	Difficulty int16
+	Seq        int16
+	FrameID    int32
+	ImagePath  string
+}
+
+func (q *Queries) GetReelFrames(ctx context.Context, gameID int32) ([]GetReelFramesRow, error) {
+	rows, err := q.db.Query(ctx, getReelFrames, gameID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetReelFramesRow
+	for rows.Next() {
+		var i GetReelFramesRow
+		if err := rows.Scan(
+			&i.ReelID,
+			&i.ID,
+			&i.Difficulty,
+			&i.Seq,
+			&i.FrameID,
+			&i.ImagePath,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const insertAnswer = `-- name: InsertAnswer :one
 INSERT INTO answers(reel_id, reel_alternative_id, user_id, frames_revealed)
 VALUES ($1, $2, $3, $4)

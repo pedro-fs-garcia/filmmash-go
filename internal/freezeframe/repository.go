@@ -4,6 +4,7 @@ import (
 	"context"
 	"filmmash/internal/database"
 	"filmmash/internal/database/dbgen"
+	"filmmash/internal/film"
 	"fmt"
 
 	"github.com/jackc/pgx/v5/pgtype"
@@ -30,6 +31,71 @@ func (r *repository) InsertGame(ctx context.Context, g Game) (int32, error) {
 		return 0, database.ParseDBError("inserting game", err)
 	}
 	return id, nil
+}
+
+func (r *repository) GetGame(ctx context.Context, gameID int32) (Game, error) {
+	gameRow, err := r.queries(ctx).GetGame(ctx, gameID)
+	if err != nil {
+		return Game{}, database.ParseDBError(fmt.Sprintf("getting game (game_id: %d)", gameID), err)
+	}
+
+	gameReelsRows, err := r.queries(ctx).GetGameReels(ctx, gameRow.ID)
+	if err != nil {
+		return Game{}, database.ParseDBError(fmt.Sprintf("getting game reels (game_id: %d)", gameRow.ID), err)
+	}
+
+	gameReelsFrames, err := r.queries(ctx).GetReelFrames(ctx, gameRow.ID)
+	if err != nil {
+		return Game{}, database.ParseDBError(
+			fmt.Sprintf("getting reels frames for game (game_id: %d)", gameRow.ID),
+			err,
+		)
+	}
+
+	gameReelsAlternatives, err := r.queries(ctx).GetReelAlternatives(ctx, gameRow.ID)
+	if err != nil {
+		return Game{}, database.ParseDBError(
+			fmt.Sprintf("getting reels alternatives for game (game_id: %d)", gameRow.ID),
+			err,
+		)
+	}
+
+	reels := make([]Reel, len(gameReelsRows))
+	for i, r := range gameReelsRows {
+		var reelFrames []ReelFrame
+		for _, rf := range gameReelsFrames {
+			if rf.FrameID == r.ID {
+				reelFrames = append(reelFrames, ReelFrame{
+					ID:         rf.ID,
+					Seq:        rf.Seq,
+					Difficulty: rf.Difficulty,
+					Frame:      Frame{ID: rf.FrameID, FilmID: r.FilmID, ImagePath: rf.ImagePath},
+				},
+				)
+			}
+		}
+
+		var alts []Alternative
+		for _, a := range gameReelsAlternatives {
+			if a.ReelID == r.ID {
+				alts = append(alts, Alternative{
+					ID:   a.ID,
+					Seq:  a.Seq,
+					Film: film.Film{Id: int(a.FilmID), Title: a.FilmTitle, Year: int(a.FilmYear)},
+				})
+			}
+		}
+
+		reels[i] = Reel{
+			ID:           r.ID,
+			Seq:          r.Seq,
+			Film:         film.Film{Id: int(r.FilmID), Title: r.FilmTitle, Year: int(r.FilmYear)},
+			ReelFrames:   reelFrames,
+			Alternatives: alts,
+		}
+	}
+	g := Game{ID: gameRow.ID, ValidAt: gameRow.ValidAt.Time, Reels: reels}
+	return g, nil
 }
 
 func (r *repository) InsertReels(ctx context.Context, gameId int32, reels []Reel) ([]int32, error) {
