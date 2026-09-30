@@ -6,6 +6,7 @@ import (
 	"filmmash/internal/database/dbgen"
 	"filmmash/internal/film"
 	"fmt"
+	"time"
 
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -31,6 +32,17 @@ func (r *repository) InsertGame(ctx context.Context, g Game) (int32, error) {
 		return 0, database.ParseDBError("inserting game", err)
 	}
 	return id, nil
+}
+
+func (r *repository) GetGameIDsByDate(ctx context.Context, validAt time.Time) ([]int32, error) {
+	IDs, err := r.queries(ctx).GetGamesIdByDate(ctx, pgtype.Date{Time: validAt, Valid: true})
+	if err != nil {
+		return nil, database.ParseDBError(
+			fmt.Sprintf("getting games by date (valid_at: %v)", validAt),
+			err,
+		)
+	}
+	return IDs, nil
 }
 
 func (r *repository) GetGame(ctx context.Context, gameID int32) (Game, error) {
@@ -64,7 +76,7 @@ func (r *repository) GetGame(ctx context.Context, gameID int32) (Game, error) {
 	for i, r := range gameReelsRows {
 		var reelFrames []ReelFrame
 		for _, rf := range gameReelsFrames {
-			if rf.FrameID == r.ID {
+			if rf.ReelID == r.ID {
 				reelFrames = append(reelFrames, ReelFrame{
 					ID:         rf.ID,
 					Seq:        rf.Seq,

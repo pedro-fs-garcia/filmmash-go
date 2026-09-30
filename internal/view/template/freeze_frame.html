@@ -2,63 +2,174 @@
 
 {{ define "content" }}
 
+<style>
+    /* Freeze Frame — page-local styles. Colors are the base.html tokens
+       (docs/visual-identity.md §2) and the layout reuses the .ff-* recipes
+       already in base.html; only what base.html doesn't cover lives here. */
+
+    /* Reel-progress fill. Games always have 5 reels (game validation), so
+       the fill keys off the current reel via a data-seq attribute — this
+       keeps the templated value out of a `style` attribute (which tooling
+       parses as static CSS) while reusing base.html's .ff-progress bar. */
+    .ff-progress-fill {
+        width: 0;
+    }
+
+    .ff-progress[data-seq="1"] .ff-progress-fill { width: 20%; }
+    .ff-progress[data-seq="2"] .ff-progress-fill { width: 40%; }
+    .ff-progress[data-seq="3"] .ff-progress-fill { width: 60%; }
+    .ff-progress[data-seq="4"] .ff-progress-fill { width: 80%; }
+    .ff-progress[data-seq="5"] .ff-progress-fill { width: 100%; }
+
+    /* Small gold eyebrow counting the stills revealed so far. */
+    .ff-frame-count {
+        margin: 0 0 0.9rem;
+        color: var(--gold);
+        font-size: 0.7rem;
+        font-weight: 700;
+        letter-spacing: 0.3em;
+        text-transform: uppercase;
+    }
+
+    /* All of a reel's stills ship in the round; the reveal script shows one
+       at a time by moving the .is-current class forward. */
+    .ff-still {
+        display: none;
+    }
+
+    .ff-still.is-current {
+        display: block;
+    }
+
+    /* "No film today" — doubles as the graceful state before a round is
+       wired into the handler. */
+    .ff-empty {
+        max-width: min(95vw, 640px);
+        margin: clamp(3rem, 12vh, 6rem) auto 0;
+        text-align: center;
+    }
+
+    .ff-empty-label {
+        margin: 0 0 0.6rem;
+        color: var(--gold);
+        font-size: 0.75rem;
+        letter-spacing: 0.3em;
+        text-transform: uppercase;
+    }
+
+    .ff-empty p {
+        color: var(--ivory-dim);
+        line-height: 1.6;
+    }
+</style>
+
+{{ if . }}
 <section class="freeze-frame">
-    <header class="ff-head">
-        <p class="ff-reel">Reel 1 of 5</p>
-        <div class="ff-progress" role="progressbar" aria-label="Reel progress" aria-valuemin="0" aria-valuemax="5"
-            aria-valuenow="1">
-            <span class="ff-progress-fill" style="width: 20%"></span>
-        </div>
-    </header>
-
-    <div class="ff-body">
-        <figure class="ff-frame">
-            <img class="ff-still"
-                src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1280 720'%3E%3Crect width='1280' height='720' fill='%2316130d'/%3E%3Ctext x='640' y='352' text-anchor='middle' font-family='Courier New,monospace' font-size='62' font-weight='bold' letter-spacing='16' fill='%23c9a24b'%3EFREEZE FRAME%3C/text%3E%3Ctext x='640' y='408' text-anchor='middle' font-family='Courier New,monospace' font-size='24' letter-spacing='8' fill='%23c9bfa6'%3Emock still%3C/text%3E%3C/svg%3E"
-                alt="Placeholder still — the frame for this round is not wired up yet">
-            <span class="ff-marks" aria-hidden="true"></span>
-        </figure>
-
-        <div class="ff-quiz">
-            <h1 class="ff-question">Which scene is this?</h1>
-
-            <ul class="ff-options">
-                <li>
-                    <button type="button" class="ff-option">
-                        <span class="ff-key">A</span>
-                        <span class="ff-title">The Maltese Falcon</span>
-                    </button>
-                </li>
-                <li>
-                    <button type="button" class="ff-option">
-                        <span class="ff-key">B</span>
-                        <span class="ff-title">Double Indemnity</span>
-                    </button>
-                </li>
-                <li>
-                    <button type="button" class="ff-option">
-                        <span class="ff-key">C</span>
-                        <span class="ff-title">Casablanca</span>
-                    </button>
-                </li>
-                <li>
-                    <button type="button" class="ff-option">
-                        <span class="ff-key">D</span>
-                        <span class="ff-title">The Big Sleep</span>
-                    </button>
-                </li>
-            </ul>
-
-            <button type="button" class="ff-next">
-                <svg class="ff-next-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"
-                    stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                    <path d="M6 5l9 7-9 7V5z"/>
-                    <path d="M18 5v14"/>
-                </svg>
-                <span>Next Frame</span>
-            </button>
-        </div>
+    <div id="ff-round">
+        {{ template "round" . }}
     </div>
 </section>
+{{ else }}
+<section class="ff-empty">
+    <p class="ff-empty-label">Freeze Frame</p>
+    <h1>The projector's dark</h1>
+    <p>No film is scheduled for today. Check back tomorrow for a fresh strip
+        of stills to name.</p>
+</section>
+{{ end }}
 
+<script>
+    (function () {
+        // Freeze Frame — client-side frame reveal. Every still of a reel ships
+        // in the round; only one shows at a time and "Reveal next frame" steps
+        // forward. State lives in the DOM (the figure's data-revealed and the
+        // .is-current still), so it resets by itself when htmx swaps a new
+        // round into #ff-round — no re-init needed.
+        function figure() { return document.querySelector("#ff-round .ff-frame"); }
+
+        // Read by each option's hx-vals (js:) so the submission reports how
+        // many stills the player needed before guessing.
+        window.ffFramesRevealed = function () {
+            var fig = figure();
+            return fig ? (parseInt(fig.dataset.revealed, 10) || 1) : 1;
+        };
+
+        document.addEventListener("click", function (e) {
+            var btn = e.target.closest("[data-ff-reveal]");
+            if (!btn) return;
+            var fig = figure();
+            if (!fig) return;
+
+            var stills = fig.querySelectorAll(".ff-still");
+            var shown = parseInt(fig.dataset.revealed, 10) || 1;
+            if (shown >= stills.length) return;
+
+            stills[shown - 1].classList.remove("is-current");
+            stills[shown].classList.add("is-current");
+            shown += 1;
+            fig.dataset.revealed = shown;
+
+            var counter = document.querySelector("#ff-round .ff-frame-n");
+            if (counter) counter.textContent = shown;
+
+            // Author CSS sets .ff-next { display: flex }, which beats the UA
+            // [hidden] rule, so hide via inline style once every still is out.
+            if (shown >= stills.length) btn.style.display = "none";
+        });
+    })();
+</script>
+
+{{ end }}
+
+{{ define "round" }}
+<header class="ff-head">
+    <p class="ff-reel">Reel {{ .ReelSeq }} of {{ .TotalReels }}</p>
+    <div class="ff-progress" role="progressbar" aria-label="Reel progress"
+        aria-valuemin="0" aria-valuemax="{{ .TotalReels }}" aria-valuenow="{{ .ReelSeq }}"
+        data-seq="{{ .ReelSeq }}">
+        <span class="ff-progress-fill"></span>
+    </div>
+</header>
+
+<div class="ff-body">
+    <figure class="ff-frame" data-revealed="1">
+        {{ range $i, $rf := .ReelFrames }}
+        <img class="ff-still{{ if eq $i 0 }} is-current{{ end }}"
+            src="/static/frames/{{ $rf.Frame.ImagePath }}"
+            alt="A frame from the film">
+        {{ end }}
+        <span class="ff-marks" aria-hidden="true"></span>
+    </figure>
+
+    <div class="ff-quiz">
+        <p class="ff-frame-count">Frame <span class="ff-frame-n">1</span> of {{ len .ReelFrames }}</p>
+        <h1 class="ff-question">Which film is this?</h1>
+
+        <ul class="ff-options">
+            {{ range $i, $alt := .Alternatives }}
+            <li>
+                <button type="button" class="ff-option"
+                    hx-post="/ui/freeze_frame/submit"
+                    hx-vals='js:{reel_id: {{ $.ReelID }}, alternative_id: {{ $alt.ID }}, frames_revealed: ffFramesRevealed()}'
+                    hx-target="#ff-round"
+                    hx-swap="innerHTML">
+                    <span class="ff-key">{{ printf "%c" (index "ABCD" $i) }}</span>
+                    <span class="ff-title">{{ $alt.Film.Title }} ({{ $alt.Film.Year }})</span>
+                </button>
+            </li>
+            {{ end }}
+        </ul>
+
+        {{ if gt (len .ReelFrames) 1 }}
+        <button type="button" class="ff-next" data-ff-reveal>
+            <svg class="ff-next-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"
+                stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <rect x="4" y="5" width="16" height="14" rx="1"/>
+                <path d="M12 9v6M9 12h6"/>
+            </svg>
+            <span>Reveal Next Frame</span>
+        </button>
+        {{ end }}
+    </div>
+</div>
 {{ end }}

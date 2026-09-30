@@ -28,35 +28,6 @@ func (q *Queries) GetGame(ctx context.Context, gameID int32) (GetGameRow, error)
 	return i, err
 }
 
-const getGameByDate = `-- name: GetGameByDate :many
-SELECT id, valid_at FROM games WHERE valid_at = $1
-`
-
-type GetGameByDateRow struct {
-	ID      int32
-	ValidAt pgtype.Date
-}
-
-func (q *Queries) GetGameByDate(ctx context.Context, validAt pgtype.Date) ([]GetGameByDateRow, error) {
-	rows, err := q.db.Query(ctx, getGameByDate, validAt)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []GetGameByDateRow
-	for rows.Next() {
-		var i GetGameByDateRow
-		if err := rows.Scan(&i.ID, &i.ValidAt); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
 const getGameReels = `-- name: GetGameReels :many
 SELECT r.id, r.seq, f.id AS film_id, f.title AS film_title, f.release_year AS film_year
 FROM reels r
@@ -92,6 +63,30 @@ func (q *Queries) GetGameReels(ctx context.Context, gameID int32) ([]GetGameReel
 			return nil, err
 		}
 		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getGamesIdByDate = `-- name: GetGamesIdByDate :many
+SELECT id FROM games WHERE valid_at = $1
+`
+
+func (q *Queries) GetGamesIdByDate(ctx context.Context, validAt pgtype.Date) ([]int32, error) {
+	rows, err := q.db.Query(ctx, getGamesIdByDate, validAt)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []int32
+	for rows.Next() {
+		var id int32
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err

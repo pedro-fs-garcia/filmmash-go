@@ -3,13 +3,16 @@ package freezeframe
 import (
 	"context"
 	"filmmash/internal/database"
+	"fmt"
 	"log/slog"
+	"time"
 )
 
 type Service struct {
 	logger    *slog.Logger
 	repo      *repository
 	txManager *database.TxManager
+	gameCache *GameCache
 }
 
 func NewService(logger *slog.Logger, repo *repository, txManager *database.TxManager) *Service {
@@ -17,6 +20,7 @@ func NewService(logger *slog.Logger, repo *repository, txManager *database.TxMan
 		logger:    logger,
 		repo:      repo,
 		txManager: txManager,
+		gameCache: &GameCache{logger: logger},
 	}
 }
 
@@ -96,4 +100,62 @@ func (s *Service) SeedGame(ctx context.Context, g *Game) error {
 	}
 
 	return nil
+}
+
+func (s *Service) GetGame(ctx context.Context, gameID int32) (Game, error) {
+	if cached := s.gameCache.Read(); cached != nil && cached.ID == gameID {
+		return *cached, nil
+	}
+	return s.repo.GetGame(ctx, gameID)
+}
+
+func (s *Service) GetTodaysGame(ctx context.Context) (Game, error) {
+	cachedGame := s.gameCache.Read()
+
+	year, month, day := time.Now().Date()
+	if cachedGame != nil && cachedGame.ValidAt.Equal(time.Date(year, month, day, 0, 0, 0, 0, nil)) {
+		return *s.gameCache.CachedGame, nil
+	}
+
+	gameIDs, err := s.repo.GetGameIDsByDate(ctx, time.Now())
+	if len(gameIDs) == 0 {
+		return Game{}, fmt.Errorf("%w: %w", ErrNoGameForDate, err)
+	}
+
+	game, err := s.GetGame(ctx, gameIDs[0])
+	if err != nil {
+		return Game{}, err
+	}
+
+	s.gameCache.Set(&game)
+	return game, nil
+}
+
+func (s *Service) GetRound(ctx context.Context, seq int16) (Round, error) {
+	g, err := s.GetTodaysGame(ctx)
+	if err != nil {
+		return Round{}, err
+	}
+
+	l := len(g.Reels)
+	if seq <= 0 || int(seq) > l {
+		return Round{}, fmt.Errorf("%w, seq must be between 1 and 5, got %d", ErrOutOfRange, seq)
+	}
+
+	r := g.Reels[seq-1]
+	var nextReelID int32
+	if int(seq) < l {
+		nextReelID = g.Reels[seq].ID
+	}
+
+	return Round{
+		GameID:       g.ID,
+		ValidAt:      g.ValidAt,
+		TotalReels:   l,
+		ReelID:       r.ID,
+		ReelSeq:      r.Seq,
+		NextReelID:   nextReelID,
+		ReelFrames:   r.ReelFrames,
+		Alternatives: r.Alternatives,
+	}, nil
 }

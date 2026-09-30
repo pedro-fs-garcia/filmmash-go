@@ -59,7 +59,7 @@ func NewRouter(
 			r.Get("/film/votes/{film_id}", voteHandler.ListFilmVotes)
 			r.Get("/my_votes", authService.SessionMiddleware(voteHandler.MyVotesHandler))
 
-			r.Get("/freeze_frame", freezeFrameHandler.FreezeFrameHandler)
+			r.Get("/freeze_frame", freezeFrameHandler.GetRound)
 
 			r.Post(
 				"/duel/{duel_id}/result",
@@ -70,6 +70,7 @@ func NewRouter(
 
 		r.Route("/api", func(r chi.Router) {
 			r.Post("/freezeframe", freezeFrameHandler.CreateGame)
+			r.Get("/game", freezeFrameHandler.GetTodaysGame)
 		})
 
 		r.Route("/admin", func(r chi.Router) {

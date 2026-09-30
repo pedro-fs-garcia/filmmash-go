@@ -12,6 +12,8 @@ var (
 	ErrOutOfOrder = errors.New("out of order")
 	ErrDuplicate  = errors.New("duplicate")
 	ErrMismatch   = errors.New("mismatch")
+
+	ErrNoGameForDate = errors.New("no valid games for date provided")
 )
 
 type Violation struct {

@@ -32,8 +32,8 @@ RETURNING id;
 -- name: GetGame :one
 SELECT id, valid_at FROM games WHERE id = sqlc.arg(game_id);
 
--- name: GetGameByDate :many
-SELECT id, valid_at FROM games WHERE valid_at = sqlc.arg(valid_at);
+-- name: GetGamesIdByDate :many
+SELECT id FROM games WHERE valid_at = sqlc.arg(valid_at);
 
 -- name: GetGameReels :many
 SELECT r.id, r.seq, f.id AS film_id, f.title AS film_title, f.release_year AS film_year
