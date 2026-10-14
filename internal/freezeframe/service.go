@@ -112,14 +112,21 @@ func (s *Service) GetGame(ctx context.Context, gameID int32) (Game, error) {
 func (s *Service) GetTodaysGame(ctx context.Context) (Game, error) {
 	cachedGame := s.gameCache.Read()
 
-	year, month, day := time.Now().Date()
-	if cachedGame != nil && cachedGame.ValidAt.Equal(time.Date(year, month, day, 0, 0, 0, 0, nil)) {
-		return *s.gameCache.CachedGame, nil
+	now := time.Now()
+	year, month, day := now.Date()
+	if cachedGame != nil {
+		cachedYear, cachedMonth, cachedDay := cachedGame.ValidAt.Date()
+		if cachedYear == year && cachedMonth == month && cachedDay == day {
+			return *cachedGame, nil
+		}
 	}
 
-	gameIDs, err := s.repo.GetGameIDsByDate(ctx, time.Now())
+	gameIDs, err := s.repo.GetGameIDsByDate(ctx, now)
+	if err != nil {
+		return Game{}, err
+	}
 	if len(gameIDs) == 0 {
-		return Game{}, fmt.Errorf("%w: %w", ErrNoGameForDate, err)
+		return Game{}, ErrNoGameForDate
 	}
 
 	game, err := s.GetGame(ctx, gameIDs[0])
@@ -158,4 +165,17 @@ func (s *Service) GetRound(ctx context.Context, seq int16) (Round, error) {
 		ReelFrames:   r.ReelFrames,
 		Alternatives: r.Alternatives,
 	}, nil
+}
+
+func (s *Service) ProcessSubmission(submission Submission, state StateCookie, currentScore int16) (int16, error) {
+	reel := s.gameCache.Read().Reels[submission.ReelSeq-1]
+	if reel.ID != submission.ReelID {
+		return 0, ErrWrongReelForGame
+	}
+
+	if reel.IsRightAlternative(submission.AlternativeSeq) {
+		currentScore += 200 - ((submission.FramesRevealed - 1) * 50)
+	}
+
+	return currentScore, nil
 }

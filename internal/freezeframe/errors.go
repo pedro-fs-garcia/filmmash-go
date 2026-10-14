@@ -13,7 +13,8 @@ var (
 	ErrDuplicate  = errors.New("duplicate")
 	ErrMismatch   = errors.New("mismatch")
 
-	ErrNoGameForDate = errors.New("no valid games for date provided")
+	ErrNoGameForDate    = errors.New("no valid games for date provided")
+	ErrWrongReelForGame = errors.New("reel is not valid for game")
 )
 
 type Violation struct {

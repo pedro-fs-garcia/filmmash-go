@@ -41,6 +41,8 @@ All colors are CSS custom properties declared on `:root` in `base.html`. **Never
 
 ## 3. Typography
 
+Freeze Frame results use a centered framed panel with a large ivory score, gold section labels, and muted ivory supporting text. The Explore films action uses an ivory outlined link, including its visited state, with gold hover and keyboard focus styling. These rules live in the `.ff-results` section of `base.html` so they also apply when results arrive through an htmx swap.
+
 **One typeface: [Courier Prime](https://fonts.google.com/specimen/Courier+Prime)** (Google Fonts), fallback `monospace`. It is the screenplay/typewriter voice of the whole app — headings, body, buttons, tables, everything. Do not introduce a second typeface.
 
 - Weights: 400 and 700, plus italics of both. The `<body>` carries class `courier-prime-regular`; new elements inherit it (`font-family: inherit` on form controls).

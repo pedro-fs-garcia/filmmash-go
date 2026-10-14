@@ -1,0 +1,29 @@
+{{ template "base" . }}
+{{ define "content" }}
+<section class="freeze-frame">
+    <div id="ff-round">
+        <header class="ff-head">
+            <p class="ff-reel">Freeze Frame · Complete</p>
+            <div class="ff-progress" role="progressbar" aria-label="Reels completed"
+                aria-valuemin="0" aria-valuemax="{{ .TotalReels }}" aria-valuenow="{{ .TotalReels }}">
+                <span class="ff-progress-fill" style="width: 100%"></span>
+            </div>
+        </header>
+        <article class="ff-results" aria-labelledby="ff-results-title">
+            <p class="ff-results-eyebrow">Today's screening is complete</p>
+            <h1 id="ff-results-title">That's a wrap.</h1>
+            <p class="ff-results-intro">The final frame. The closing credits. Your score.</p>
+            <div class="ff-results-score">
+                <p class="ff-results-eyebrow">Final score</p>
+                <p class="ff-results-number">{{ .Score }}<span>points</span></p>
+                <p class="ff-results-maximum">out of {{ .MaxScore }} possible</p>
+            </div>
+            <div class="ff-results-footer">
+                <p class="ff-results-completed">{{ .TotalReels }} / {{ .TotalReels }} reels completed</p>
+                <p>A new strip of stills awaits tomorrow.</p>
+                <a class="ff-results-link" href="/ui/films">Explore films <span aria-hidden="true">→</span></a>
+            </div>
+        </article>
+    </div>
+</section>
+{{ end }}

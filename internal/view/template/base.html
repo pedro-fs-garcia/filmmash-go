@@ -969,6 +969,76 @@
             border-color: var(--gold-bright);
         }
 
+        .ff-results {
+            max-width: 720px;
+            margin: clamp(1.5rem, 5vh, 3.5rem) auto;
+            padding: clamp(1.75rem, 5vw, 4rem);
+            text-align: center;
+            background: linear-gradient(180deg, var(--noir-panel-2), var(--noir-panel));
+            border: 1px solid var(--line);
+            outline: 1px solid var(--noir-black);
+            outline-offset: -7px;
+        }
+        .ff-results-eyebrow {
+            color: var(--gold);
+            font-size: 0.7rem;
+            letter-spacing: 0.2em;
+            line-height: 1.7;
+            text-transform: uppercase;
+        }
+        .ff-results h1 {
+            margin: 0.75rem 0;
+            color: var(--gold-bright);
+            font-size: clamp(2rem, 6vw, 3.5rem);
+        }
+        .ff-results-intro, .ff-results-maximum, .ff-results-footer p {
+            color: var(--ivory-dim);
+            line-height: 1.7;
+        }
+        .ff-results-score {
+            margin-top: 2rem;
+            padding: 1.75rem 0;
+            border-top: 1px solid var(--line);
+            border-bottom: 1px solid var(--line);
+        }
+        .ff-results-number {
+            margin: 0;
+            color: var(--ivory);
+            font-size: clamp(4rem, 14vw, 7rem);
+            font-weight: 700;
+            line-height: 1.1;
+        }
+        .ff-results-number span {
+            display: block;
+            margin-top: 0.75rem;
+            font-size: 0.85rem;
+            font-weight: 400;
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+        }
+        .ff-results-maximum { margin-bottom: 0; }
+        .ff-results-footer { padding-top: 1.5rem; }
+        .ff-results-footer .ff-results-completed { color: var(--ivory); }
+        .ff-results-link, .ff-results-link:visited {
+            display: inline-flex;
+            align-items: center;
+            gap: 1.5rem;
+            margin-top: 1rem;
+            padding: 0.85rem 1.5rem;
+            color: var(--ivory);
+            background: var(--noir-panel-2);
+            border: 1px solid var(--line);
+            text-decoration: none;
+        }
+        .ff-results-link:hover, .ff-results-link:focus-visible {
+            color: var(--gold-bright);
+            background: var(--noir-black);
+        }
+        .ff-results-link:focus-visible {
+            outline: 2px solid var(--gold-bright);
+            outline-offset: 4px;
+        }
+
         .ff-next {
             align-self: center;
             display: flex;

@@ -203,3 +203,31 @@ func (g *Game) Validate() error {
 	}
 	return fmt.Errorf("invalid game: %w", ve)
 }
+
+func (s *Submission) Validate() error {
+	var errs []error
+	if s.AlternativeSeq <= 0 || s.AlternativeSeq > 4 {
+		errs = append(errs, &Violation{"alternative_seq", ErrOutOfRange,
+			fmt.Sprintf("must be between 1 and 4, got %d", s.AlternativeSeq),
+		})
+	}
+	if s.ReelSeq <= 0 || s.ReelSeq > 5 {
+		errs = append(errs, &Violation{"reel_seq", ErrOutOfRange,
+			fmt.Sprintf("must be between 1 and 5, got %d", s.ReelSeq),
+		})
+	}
+	if s.FramesRevealed <= 0 || s.FramesRevealed > 5 {
+		errs = append(errs, &Violation{"frames_revealed", ErrOutOfRange,
+			fmt.Sprintf("must be between 1 and 5, got %d", s.FramesRevealed),
+		})
+	}
+	if s.ReelID == 0 || s.AlternativeID == 0 {
+		errs = append(errs, &Violation{"reel_id, alternative_id", ErrRequired,
+			fmt.Sprintf("must be set, got %d, %d", s.ReelID, s.AlternativeID),
+		})
+	}
+	if len(errs) == 0 {
+		return nil
+	}
+	return group("", errs...)
+}

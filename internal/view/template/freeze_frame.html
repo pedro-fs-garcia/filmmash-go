@@ -79,6 +79,17 @@
 {{ end }}
 
 <script>
+    htmx.defineExtension("ff-json", {
+        onEvent: function (name, event) {
+            if (name === "htmx:configRequest") {
+                event.detail.headers["Content-Type"] = "application/json";
+            }
+        },
+        encodeParameters: function (xhr, parameters) {
+            return JSON.stringify(parameters);
+        }
+    });
+
     (function () {
         // Freeze Frame — client-side frame reveal. Every still of a reel ships
         // in the round; only one shows at a time and "Reveal next frame" steps
@@ -149,9 +160,11 @@
             {{ range $i, $alt := .Alternatives }}
             <li>
                 <button type="button" class="ff-option"
-                    hx-post="/ui/freeze_frame/submit"
-                    hx-vals='js:{reel_id: {{ $.ReelID }}, alternative_id: {{ $alt.ID }}, frames_revealed: ffFramesRevealed()}'
+                    hx-post="/ui/freezeframe/submit_answer"
+                    hx-ext="ff-json"
+                    hx-vals='js:{reel_id: {{ $.ReelID }}, reel_seq: {{ $.ReelSeq }}, alternative_id: {{ $alt.ID }}, alternative_seq: {{ $alt.Seq }}, frames_revealed: ffFramesRevealed()}'
                     hx-target="#ff-round"
+                    hx-select="#ff-round > *"
                     hx-swap="innerHTML">
                     <span class="ff-key">{{ printf "%c" (index "ABCD" $i) }}</span>
                     <span class="ff-title">{{ $alt.Film.Title }} ({{ $alt.Film.Year }})</span>

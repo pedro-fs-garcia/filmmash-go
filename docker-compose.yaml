@@ -20,6 +20,10 @@ services:
       retries: 10
 
   migrate:
+    depends_on:
+      postgres:
+        condition: service_healthy
+        required: false
     build:
       context: .
       dockerfile: Dockerfile.migrate

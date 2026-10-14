@@ -43,6 +43,10 @@ func init() {
 		"template/base.html",
 		"template/freeze_frame.html",
 	))
+	TemplateCache["freezeFrameResultsPage"] = template.Must(template.ParseFS(TemplatesFS,
+		"template/base.html",
+		"template/freeze_frame_results.html",
+	))
 	TemplateCache["myVotesPage"] = template.Must(template.ParseFS(TemplatesFS,
 		"template/base.html",
 		"template/my_votes.html",
