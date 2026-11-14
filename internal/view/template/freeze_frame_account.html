@@ -1,0 +1,10 @@
+{{ template "base" . }}
+{{ define "content" }}
+<section class="freeze-frame"><header class="ff-head"><p class="ff-reel">Freeze Frame</p><nav class="ff-game-nav"><a href="/ui/freezeframe/">Today's game</a><a href="/ui/freezeframe/history">History &amp; archive</a><a href="/ui/freezeframe/leaderboard">Leaderboard</a></nav></header>
+<h1>{{ .Title }}</h1>
+{{ if .Leaderboard }}<nav class="ff-game-nav"><a href="/ui/freezeframe/leaderboard">Today · {{ .Date }}</a><a href="/ui/freezeframe/leaderboard?period=overall">Overall</a></nav>
+<table class="ff-table"><thead><tr><th>Rank</th><th>Player</th><th>Score</th><th>Games</th></tr></thead><tbody>{{ range .Leaders }}<tr><td>{{ .Rank }}</td><td>{{ .Name }}</td><td>{{ .Score }}</td><td>{{ .Games }}</td></tr>{{ else }}<tr><td colspan="4">No completed games yet. The first screening is yours.</td></tr>{{ end }}</tbody></table>
+{{ else }}<p class="ff-take">Current streak: {{ .Streak }} days</p><p class="ff-muted">Archive games count in your history. Playing a missed day later does not repair a streak.</p>
+<div class="ff-archive">{{ range .Days }}<article class="ff-archive-day"><h2>{{ .Date }}</h2>{{ if .Finished }}<p>{{ .Score }} / 1000 points</p><details><summary>Reel outcomes</summary><ol class="ff-outcomes">{{ range .Outcomes }}<li>Reel {{ .Reel }} · {{ if .Correct }}✓ Correct{{ else }}✗ Unsolved{{ end }} · {{ .Points }} points · {{ .Takes }} takes</li>{{ end }}</ol></details><a class="ff-results-link" href="/ui/freezeframe/?date={{ .Date }}">View result</a>{{ else }}<p>{{ if .Started }}Your screening is paused.{{ else }}You missed this screening.{{ end }}</p><a class="ff-results-link" href="/ui/freezeframe/?date={{ .Date }}">{{ if .Started }}Resume{{ else }}Play this day{{ end }} →</a>{{ end }}</article>{{ else }}<p>No screenings have been scheduled yet.</p>{{ end }}</div>
+{{ end }}</section>
+{{ end }}

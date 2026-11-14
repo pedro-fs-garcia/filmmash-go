@@ -17,6 +17,27 @@ import (
 
 var testPool *pgxpool.Pool
 
+func TestStoredIMDBRoundTrip(t *testing.T) {
+	ctx := context.Background()
+	tx, err := testPool.Begin(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer tx.Rollback(ctx)
+	ctx = database.InjectTx(ctx, tx)
+	repo := film.NewRepository(testPool)
+	for i, imdb := range []string{"tt1234567", ""} {
+		f := film.Film{Id: 989900 + i, ImdbId: imdb, Title: "IMDB fixture", Year: 2000, Director: film.Director{Id: 989900 + i, Name: "IMDB director"}}
+		if err = repo.InsertFilm(ctx, &f); err != nil {
+			t.Fatal(err)
+		}
+		got, e := repo.GetFilm(ctx, f.Id)
+		if e != nil || got.ImdbId != imdb {
+			t.Fatalf("IMDB mapping: %v %#v", e, got)
+		}
+	}
+}
+
 var testDirector = film.Director{
 	Id:   543,
 	Name: "Testing director",

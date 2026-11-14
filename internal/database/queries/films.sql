@@ -10,8 +10,8 @@ director AS (
     UNION ALL
     SELECT id AS director_id FROM directors WHERE id = sqlc.arg(director_id)
 )
-INSERT INTO films (id, title, release_year, director_id, image_path, rating)
-SELECT sqlc.arg(id), sqlc.arg(title), sqlc.arg(release_year), director_id, sqlc.arg(image_path), sqlc.arg(rating) FROM director
+INSERT INTO films (id, title, release_year, director_id, image_path, rating, imdb_id)
+SELECT sqlc.arg(id), sqlc.arg(title), sqlc.arg(release_year), director_id, sqlc.arg(image_path), sqlc.arg(rating), sqlc.narg(imdb_id) FROM director
 RETURNING id;
 
 -- name: InsertFilmBatch :batchone
@@ -26,8 +26,8 @@ director AS (
     UNION ALL
     SELECT id AS director_id FROM directors WHERE id = sqlc.arg(director_id)
 )
-INSERT INTO films (id, title, release_year, director_id, image_path, rating, popularity, vote_average)
-SELECT sqlc.arg(id), sqlc.arg(title), sqlc.arg(release_year), director_id, sqlc.arg(image_path), sqlc.arg(rating), sqlc.arg(popularity), sqlc.arg(vote_average) FROM director
+INSERT INTO films (id, title, release_year, director_id, image_path, rating, popularity, vote_average, imdb_id)
+SELECT sqlc.arg(id), sqlc.arg(title), sqlc.arg(release_year), director_id, sqlc.arg(image_path), sqlc.arg(rating), sqlc.arg(popularity), sqlc.arg(vote_average), sqlc.narg(imdb_id) FROM director
 ON CONFLICT DO NOTHING
 RETURNING id;
 
@@ -40,21 +40,21 @@ RETURNING id;
 SELECT id, name FROM directors WHERE id = $1;
 
 -- name: GetFilm :one
-SELECT films.id, films.title, films.release_year, films.image_path, films.rating,
+SELECT films.id, films.title, films.release_year, films.image_path, films.rating, films.imdb_id,
     directors.id AS director_id, directors.name AS director_name
 FROM films
 JOIN directors ON films.director_id = directors.id
 WHERE films.id = $1;
 
 -- name: GetRandomFilm :one
-SELECT films.id, films.title, films.release_year, films.image_path, films.rating,
+SELECT films.id, films.title, films.release_year, films.image_path, films.rating, films.imdb_id,
     directors.id AS director_id, directors.name AS director_name
 FROM films
 JOIN directors ON films.director_id = directors.id
 ORDER BY RANDOM() LIMIT 1;
 
 -- name: ListFilmsByRating :many
-SELECT films.id, films.title, films.release_year, films.image_path, films.rating,
+SELECT films.id, films.title, films.release_year, films.image_path, films.rating, films.imdb_id,
     directors.id AS director_id, directors.name AS director_name
 FROM films
 JOIN directors ON films.director_id = directors.id
@@ -66,7 +66,7 @@ ORDER BY films.rating DESC, films.id DESC
 LIMIT $1;
 
 -- name: SearchFilmsByTitle :many
-SELECT films.id, films.title, films.release_year, films.image_path, films.rating,
+SELECT films.id, films.title, films.release_year, films.image_path, films.rating, films.imdb_id,
     directors.id AS director_id, directors.name AS director_name
 FROM films
 JOIN directors ON films.director_id = directors.id
@@ -83,3 +83,9 @@ SELECT COUNT(*) FROM films;
 
 -- name: IdsInFilms :many
 SELECT id FROM films WHERE id = ANY($1::INTEGER[]);
+
+-- name: FilmsMissingImdb :many
+SELECT id FROM films WHERE imdb_id IS NULL ORDER BY id;
+
+-- name: UpdateFilmImdb :exec
+UPDATE films SET imdb_id = sqlc.narg(imdb_id) WHERE id = sqlc.arg(id);

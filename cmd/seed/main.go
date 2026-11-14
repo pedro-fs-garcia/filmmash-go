@@ -34,7 +34,7 @@ func main() {
 
 	client := tmdb.NewClient("https://api.themoviedb.org/3", cfg.TmdbApitoken)
 	totalTop := 0
-	for page := 1; page <= 3; page++ {
+	for page := 1; page <= 1; page++ {
 		fmt.Printf("Downloading top rated movies from TMDB, page %d\n", page)
 		movies, err := client.GetTopRated(int16(page))
 		if err != nil {
@@ -77,12 +77,12 @@ func SaveMovies(ctx context.Context, pool *pgxpool.Pool, movies []tmdb.Movie) in
 		year, _, _ := strings.Cut(movie.ReleaseDate, "-")
 		release_year, _ := strconv.Atoi(year)
 		query := `
-			INSERT INTO films (id, title, release_year, director_id, image_path, popularity, vote_average) 
-			VALUES ($1, $2, $3, $4, $5, $6, $7) ON CONFLICT DO NOTHING
+			INSERT INTO films (id, title, release_year, director_id, image_path, popularity, vote_average, imdb_id)
+			VALUES ($1, $2, $3, $4, $5, $6, $7, NULLIF($8, '')) ON CONFLICT DO NOTHING
 			`
 		batch.Queue(query,
 			movie.Id, movie.Title, release_year, movie.Director.Id,
-			movie.PosterPath, movie.Popularity, movie.VoteAverage,
+			movie.PosterPath, movie.Popularity, movie.VoteAverage, movie.ImdbId,
 		)
 	}
 

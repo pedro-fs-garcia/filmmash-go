@@ -5,6 +5,7 @@ import (
 	"filmmash/internal/film"
 	"filmmash/internal/freezeframe"
 	"fmt"
+	"sync/atomic"
 	"testing"
 	"time"
 )
@@ -42,21 +43,23 @@ func BuildValidReel(seq int16) freezeframe.Reel {
 		Film: f,
 	}
 
-	for i := int16(1); i <= 5; i++ {
+	for i := int16(1); i <= 4; i++ {
 		reel.ReelFrames = append(reel.ReelFrames, BuildValidReelFrame(int32(f.Id), i))
 	}
 
 	reel.Alternatives = append(reel.Alternatives, BuildValidAlternative(1, f))
-	for i := int16(2); i <= 4; i++ {
+	for i := int16(2); i <= 5; i++ {
 		reel.Alternatives = append(reel.Alternatives, BuildValidAlternative(i, BuildFilm(f.Id+int(i))))
 	}
 
 	return reel
 }
 
+var fixtureDay atomic.Int64
+
 func BuildValidGame() freezeframe.Game {
 	g := freezeframe.Game{
-		ValidAt: time.Date(2026, time.August, 31, 0, 0, 0, 0, time.UTC),
+		ValidAt: time.Date(2026, time.August, 31, 0, 0, 0, 0, time.UTC).AddDate(0, 0, int(fixtureDay.Add(1))),
 	}
 
 	for i := int16(1); i <= 5; i++ {

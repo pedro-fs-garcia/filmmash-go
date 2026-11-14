@@ -110,6 +110,7 @@ func initRouter(
 	freezeFrameRepo := freezeframe.NewRepository(pool)
 	freezeframeService := freezeframe.NewService(logger, freezeFrameRepo, txm)
 	freezeFrameHandler := freezeframe.NewHandler(logger, freezeframeService)
+	freezeFrameHandler.ConfigureDaily(tmdbClient, cfg.AppBaseURL)
 
 	adminRepo := admin.NewRepository(pool)
 	adminService := admin.NewService(adminRepo, idp, zClient, tmdbClient, filmService)

@@ -1,0 +1,33 @@
+{{ template "base" . }}
+{{ define "content" }}
+<section class="freeze-frame"><div id="ff-round" aria-live="polite" aria-atomic="true">
+{{ if .Error }}
+<article class="ff-results"><p class="ff-results-eyebrow">Freeze Frame</p><h1>The projector's resting</h1><p>{{ .Error }}</p><a class="ff-results-link" href="/ui/freezeframe/">Today's game</a></article>
+{{ else }}
+<header class="ff-head"><p class="ff-reel">Freeze Frame · {{ .Date }} · {{ .Score }} points</p><nav class="ff-game-nav" aria-label="Freeze Frame"><a href="/ui/freezeframe/history">History &amp; archive</a><a href="/ui/freezeframe/leaderboard">Leaderboard</a></nav></header>
+{{ if .Finished }}
+<article class="ff-results" aria-labelledby="ff-results-title">
+<p class="ff-results-eyebrow">Today's screening is complete</p><h1 id="ff-results-title">That's a wrap.</h1>
+<div class="ff-results-score"><p class="ff-results-eyebrow">Final score</p><p class="ff-results-number">{{ .Score }}<span>points</span></p><p class="ff-results-maximum">out of 1000 possible</p></div>
+<ol class="ff-outcomes">{{ range .Outcomes }}<li><span>Reel {{ .Reel }} · {{ if .Correct }}✓ Correct{{ else }}✗ Four takes exhausted{{ end }}</span><strong>{{ .Points }} pts</strong><span>{{ .Film }} · {{ .Takes }} takes</span></li>{{ end }}</ol>
+<a class="ff-results-link ff-share" href="{{ .ShareURL }}" target="_blank" rel="noopener noreferrer">Share on WhatsApp ↗</a>
+<p>Already played this day. Next game in <strong data-ff-countdown="{{ .NextAt }}">at midnight UTC</strong>.</p><p class="ff-muted">All daily games reset at 00:00 UTC.</p>
+{{ if .SignedIn }}<a class="ff-results-link" href="/ui/freezeframe/history">Play a missed day</a>{{ else }}<p><a class="ff-results-link" href="/auth/login">Sign in to keep your history</a></p>{{ end }}
+<a class="ff-results-link" href="/ui/films">Explore films →</a>
+</article>
+{{ else if .Pending }}
+<article class="ff-results"><p class="ff-results-eyebrow">Reel {{ .Reel }} complete</p><h1>{{ if .Outcome.Correct }}You got it.{{ else }}End of the reel.{{ end }}</h1><h2>{{ .Outcome.Film }}</h2><p>{{ if .Outcome.Correct }}✓ Correct on take {{ .Outcome.Takes }}{{ else }}✗ All four takes used{{ end }}</p><p class="ff-results-number">{{ .Outcome.Points }}<span>points earned</span></p><p>Running total: {{ .Score }} / 1000</p>
+<form action="/ui/freezeframe/next" method="post" hx-post="/ui/freezeframe/next" hx-target="#ff-round" hx-select="#ff-round > *" hx-swap="innerHTML" hx-disabled-elt="find button"><input type="hidden" name="date" value="{{ .Date }}"><button class="ff-results-link" type="submit">Next reel →</button></form></article>
+{{ else }}
+<p class="ff-take">Reel {{ .Reel }} of 5 · Take {{ .Take }} of 4 · {{ if eq .Take 1 }}200{{ else if eq .Take 2 }}150{{ else if eq .Take 3 }}100{{ else }}50{{ end }} points available</p>
+<div class="ff-body"><figure class="ff-frame"><img class="ff-still is-current" src="{{ .ImageURL }}" alt="A still from the film to identify" fetchpriority="high" width="780" height="439"><span class="ff-marks" aria-hidden="true"></span></figure>
+<div class="ff-quiz"><h1 class="ff-question">Which film is this?</h1>{{ if gt .Take 1 }}<p class="ff-take-feedback">✗ That wasn't it. Try this easier frame.</p>{{ end }}
+<form action="/ui/freezeframe/submit_answer" method="post" hx-post="/ui/freezeframe/submit_answer" hx-target="#ff-round" hx-select="#ff-round > *" hx-swap="innerHTML" hx-disabled-elt="find button" hx-sync="this:drop">
+<input type="hidden" name="date" value="{{ .Date }}"><input type="hidden" name="reel_id" value="{{ .ReelID }}"><input type="hidden" name="take" value="{{ .Take }}">
+<ul class="ff-options">{{ range .Options }}<li><button type="submit" name="alternative_id" value="{{ .ID }}" class="ff-option{{ if .Wrong }} ff-option-wrong{{ end }}" {{ if .Wrong }}disabled{{ end }}><span class="ff-key">{{ .Key }}</span><span class="ff-title">{{ .Title }} ({{ .Year }}){{ if .Wrong }} · ✗ Incorrect{{ end }}</span></button></li>{{ end }}</ul></form>
+</div></div>
+{{ end }}
+<p class="ff-attribution">Frames provided by <a href="https://www.themoviedb.org/" target="_blank" rel="noopener noreferrer">TMDB</a>. This product uses the TMDB API but is not endorsed or certified by TMDB.</p>
+{{ end }}
+</div></section>
+{{ end }}

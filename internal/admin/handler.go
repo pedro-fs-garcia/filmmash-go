@@ -168,6 +168,7 @@ func (h *Handler) AddTmdbFilmHandler(w http.ResponseWriter, r *http.Request) {
 	release_year, _ := strconv.Atoi(year)
 
 	f := film.Film{
+		ImdbId:      movie.ImdbId,
 		Id:          movie.Id,
 		Title:       movie.Title,
 		Year:        release_year,

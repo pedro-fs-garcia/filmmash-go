@@ -9,29 +9,38 @@ import (
 	"log/slog"
 	"net/http"
 	"net/url"
+	"sync"
 	"time"
 
 	"github.com/google/uuid"
 )
 
 type GameCache struct {
+	mu         sync.RWMutex
 	logger     *slog.Logger
 	CachedGame *Game
 	UpdatedAt  time.Time
 }
 
 func (gc *GameCache) Set(g *Game) {
+	gc.mu.Lock()
+	defer gc.mu.Unlock()
 	gc.CachedGame = g
 	gc.UpdatedAt = time.Now()
 	gc.logger.Info(fmt.Sprintf("new cached game: (game_id: %d)", g.ID))
 }
 
 func (gc *GameCache) Read() *Game {
+	gc.mu.RLock()
+	defer gc.mu.RUnlock()
 	return gc.CachedGame
 }
 
 func (gc *GameCache) ValidAt() time.Time {
-	return gc.CachedGame.ValidAt
+	if game := gc.Read(); game != nil {
+		return game.ValidAt
+	}
+	return time.Time{}
 }
 
 type Game struct {

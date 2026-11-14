@@ -139,7 +139,7 @@ func TestReelValidation(t *testing.T) {
 
 	t.Run("wrong reel_frame count", func(t *testing.T) {
 		r := BuildValidReel(3)
-		r.ReelFrames = r.ReelFrames[:4]
+		r.ReelFrames = r.ReelFrames[:3]
 		err := r.Validate()
 		if err == nil {
 			t.Fatalf("got no error")

@@ -19,17 +19,17 @@ var (
 const insertFilmBatch = `-- name: InsertFilmBatch :batchone
 WITH new_director AS (
     INSERT INTO directors (id, name)
-    VALUES ($8, $9)
+    VALUES ($9, $10)
     ON CONFLICT DO NOTHING
     RETURNING id AS director_id
 ),
 director AS (
     SELECT director_id FROM new_director
     UNION ALL
-    SELECT id AS director_id FROM directors WHERE id = $8
+    SELECT id AS director_id FROM directors WHERE id = $9
 )
-INSERT INTO films (id, title, release_year, director_id, image_path, rating, popularity, vote_average)
-SELECT $1, $2, $3, director_id, $4, $5, $6, $7 FROM director
+INSERT INTO films (id, title, release_year, director_id, image_path, rating, popularity, vote_average, imdb_id)
+SELECT $1, $2, $3, director_id, $4, $5, $6, $7, $8 FROM director
 ON CONFLICT DO NOTHING
 RETURNING id
 `
@@ -48,6 +48,7 @@ type InsertFilmBatchParams struct {
 	Rating       float64
 	Popularity   float64
 	VoteAverage  float64
+	ImdbID       *string
 	DirectorID   int32
 	DirectorName string
 }
@@ -63,6 +64,7 @@ func (q *Queries) InsertFilmBatch(ctx context.Context, arg []InsertFilmBatchPara
 			a.Rating,
 			a.Popularity,
 			a.VoteAverage,
+			a.ImdbID,
 			a.DirectorID,
 			a.DirectorName,
 		}

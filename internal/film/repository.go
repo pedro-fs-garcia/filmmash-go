@@ -15,6 +15,13 @@ type repository struct {
 	pool *pgxpool.Pool
 }
 
+func nullableString(s string) *string {
+	if s == "" {
+		return nil
+	}
+	return &s
+}
+
 func NewRepository(pool *pgxpool.Pool) *repository {
 	return &repository{
 		pool: pool,
@@ -39,6 +46,9 @@ func filmFromRow(row dbgen.GetFilmRow) Film {
 	if row.ImagePath != nil {
 		f.ImagePath = *row.ImagePath
 	}
+	if row.ImdbID != nil {
+		f.ImdbId = *row.ImdbID
+	}
 	return f
 }
 
@@ -48,6 +58,7 @@ func (r *repository) InsertFilm(ctx context.Context, f *Film) error {
 	}
 	id, err := r.queries(ctx).InsertFilm(ctx, dbgen.InsertFilmParams{
 		ID:           int32(f.Id),
+		ImdbID:       nullableString(f.ImdbId),
 		Title:        f.Title,
 		ReleaseYear:  int16(f.Year),
 		ImagePath:    &f.ImagePath,
@@ -73,6 +84,7 @@ func (r *repository) InsertFilmBatch(ctx context.Context, films []Film) (int32, 
 		}
 		args[i] = dbgen.InsertFilmBatchParams{
 			ID:           int32(f.Id),
+			ImdbID:       nullableString(f.ImdbId),
 			Title:        f.Title,
 			ReleaseYear:  int16(f.Year),
 			ImagePath:    &f.ImagePath,

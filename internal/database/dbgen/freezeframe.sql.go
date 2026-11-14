@@ -71,7 +71,7 @@ func (q *Queries) GetGameReels(ctx context.Context, gameID int32) ([]GetGameReel
 }
 
 const getGamesIdByDate = `-- name: GetGamesIdByDate :many
-SELECT id FROM games WHERE valid_at = $1
+SELECT id FROM games WHERE valid_at = $1 AND active ORDER BY id LIMIT 1
 `
 
 func (q *Queries) GetGamesIdByDate(ctx context.Context, validAt pgtype.Date) ([]int32, error) {

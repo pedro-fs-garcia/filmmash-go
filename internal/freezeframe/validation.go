@@ -18,8 +18,8 @@ func (f *Frame) Validate() error {
 
 func (a *Alternative) Validate() error {
 	var errs []error
-	if a.Seq < 1 || a.Seq > 4 {
-		errs = append(errs, &Violation{"seq", ErrOutOfRange, fmt.Sprintf("must be between 1 and 4, got %d", a.Seq)})
+	if a.Seq < 1 || a.Seq > 5 {
+		errs = append(errs, &Violation{"seq", ErrOutOfRange, fmt.Sprintf("must be between 1 and 5, got %d", a.Seq)})
 	}
 	if a.Film.Id == 0 {
 		errs = append(errs, &Violation{"film.id", ErrRequired, "film.id must be set"})
@@ -32,8 +32,8 @@ func (a *Alternative) Validate() error {
 
 func (rf *ReelFrame) Validate() error {
 	var errs []error
-	if rf.Seq > 5 || rf.Seq < 1 {
-		errs = append(errs, &Violation{"seq", ErrOutOfRange, fmt.Sprintf("must be between 1 and 5, got %d", rf.Seq)})
+	if rf.Seq > 4 || rf.Seq < 1 {
+		errs = append(errs, &Violation{"seq", ErrOutOfRange, fmt.Sprintf("must be between 1 and 4, got %d", rf.Seq)})
 	}
 	if rf.Difficulty > 10 || rf.Difficulty < 1 {
 		errs = append(errs, &Violation{
@@ -131,19 +131,19 @@ func (r *Reel) Validate() error {
 		})
 	}
 
-	if len(r.ReelFrames) != 5 {
+	if len(r.ReelFrames) != 4 {
 		errs = append(errs, &Violation{"reel_frames", ErrWrongCount,
-			fmt.Sprintf("must have exactly 5 frames, got %d", len(r.ReelFrames)),
+			fmt.Sprintf("must have exactly 4 frames, got %d", len(r.ReelFrames)),
 		})
 	}
 	rfErrs := r.validateReelFrames()
 	errs = append(errs, rfErrs...)
 
-	if len(r.Alternatives) != 4 {
+	if len(r.Alternatives) != 5 {
 		errs = append(errs, &Violation{
 			"alternatives",
 			ErrWrongCount,
-			fmt.Sprintf("must have exactly 4 alternatives, got %d", len(r.Alternatives)),
+			fmt.Sprintf("must have exactly 5 alternatives, got %d", len(r.Alternatives)),
 		})
 	}
 	altErrs := r.validateAlternatives()
@@ -206,9 +206,9 @@ func (g *Game) Validate() error {
 
 func (s *Submission) Validate() error {
 	var errs []error
-	if s.AlternativeSeq <= 0 || s.AlternativeSeq > 4 {
+	if s.AlternativeSeq <= 0 || s.AlternativeSeq > 5 {
 		errs = append(errs, &Violation{"alternative_seq", ErrOutOfRange,
-			fmt.Sprintf("must be between 1 and 4, got %d", s.AlternativeSeq),
+			fmt.Sprintf("must be between 1 and 5, got %d", s.AlternativeSeq),
 		})
 	}
 	if s.ReelSeq <= 0 || s.ReelSeq > 5 {
@@ -216,9 +216,9 @@ func (s *Submission) Validate() error {
 			fmt.Sprintf("must be between 1 and 5, got %d", s.ReelSeq),
 		})
 	}
-	if s.FramesRevealed <= 0 || s.FramesRevealed > 5 {
+	if s.FramesRevealed <= 0 || s.FramesRevealed > 4 {
 		errs = append(errs, &Violation{"frames_revealed", ErrOutOfRange,
-			fmt.Sprintf("must be between 1 and 5, got %d", s.FramesRevealed),
+			fmt.Sprintf("must be between 1 and 4, got %d", s.FramesRevealed),
 		})
 	}
 	if s.ReelID == 0 || s.AlternativeID == 0 {

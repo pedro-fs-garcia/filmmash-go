@@ -9,6 +9,7 @@
                 <h2>{{ .Director.Name }}</h2>
                 <img src="https://image.tmdb.org/t/p/w500{{ .ImagePath }}" alt="{{ .Title }}">
                 <h3 class="film-rating">{{ printf "%.2f" .Rating }}</h3>
+                {{ if .ImdbId }}<a class="duel-cta" href="https://www.imdb.com/title/{{ .ImdbId }}/" target="_blank" rel="noopener noreferrer">View on IMDB ↗</a>{{ end }}
                 <a class="duel-cta" href="/ui/duel/from/{{ .Id }}"><span aria-hidden="true">&#9876;</span> Duel this film</a>
             </div>
             <div class="modal-votes">

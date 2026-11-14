@@ -1,6 +1,7 @@
 package tmdb
 
 type Movie struct {
+	ImdbId      string  `json:"imdb_id"`
 	Id          int     `json:"id"`
 	Title       string  `json:"title"`
 	ReleaseDate string  `json:"release_date"`

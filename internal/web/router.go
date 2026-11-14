@@ -60,8 +60,15 @@ func NewRouter(
 			r.Get("/my_votes", authService.SessionMiddleware(voteHandler.MyVotesHandler))
 
 			r.Route("/freezeframe", func(r chi.Router) {
-				r.Get("/", freezeFrameHandler.GetRound)
-				r.Post("/submit_answer", freezeFrameHandler.SubmitAnswer)
+				r.Use(authService.SessionCtx)
+				r.Get("/", freezeFrameHandler.DailyGame)
+				r.Post("/submit_answer", freezeFrameHandler.DailyAnswer)
+				r.Post("/next", freezeFrameHandler.DailyNext)
+				r.Get("/history", freezeFrameHandler.History)
+				r.Get("/leaderboard", freezeFrameHandler.Leaderboard)
+			})
+			r.Get("/freeze_frame", func(w http.ResponseWriter, r *http.Request) {
+				http.Redirect(w, r, "/ui/freezeframe/", http.StatusMovedPermanently)
 			})
 
 			r.Post(
@@ -72,6 +79,8 @@ func NewRouter(
 		})
 
 		r.Route("/api", func(r chi.Router) {
+			r.Use(authService.SessionCtx)
+			r.Use(auth.RequiresRole("admin"))
 			r.Post("/freezeframe", freezeFrameHandler.CreateGame)
 			r.Get("/game", freezeFrameHandler.GetTodaysGame)
 		})
@@ -83,6 +92,10 @@ func NewRouter(
 			r.Get("/users", adminHandler.ListUsersPaginatedHandler)
 			r.Get("/films/search", adminHandler.SearchFilmOnTmdbHandler)
 			r.Post("/films/insert_from_tmdb/{id}", adminHandler.AddTmdbFilmHandler)
+			r.Get("/freezeframe", freezeFrameHandler.AdminFrames)
+			r.Post("/freezeframe/import", freezeFrameHandler.ImportFrames)
+			r.Post("/freezeframe/curate", freezeFrameHandler.SaveFrames)
+			r.Post("/freezeframe/schedule", freezeFrameHandler.ScheduleGame)
 		})
 
 		r.Route("/user", func(r chi.Router) {

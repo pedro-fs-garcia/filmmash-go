@@ -20,6 +20,30 @@ func (q *Queries) CountFilms(ctx context.Context) (int64, error) {
 	return count, err
 }
 
+const filmsMissingImdb = `-- name: FilmsMissingImdb :many
+SELECT id FROM films WHERE imdb_id IS NULL ORDER BY id
+`
+
+func (q *Queries) FilmsMissingImdb(ctx context.Context) ([]int32, error) {
+	rows, err := q.db.Query(ctx, filmsMissingImdb)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []int32
+	for rows.Next() {
+		var id int32
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getDirector = `-- name: GetDirector :one
 SELECT id, name FROM directors WHERE id = $1
 `
@@ -32,7 +56,7 @@ func (q *Queries) GetDirector(ctx context.Context, id int32) (Director, error) {
 }
 
 const getFilm = `-- name: GetFilm :one
-SELECT films.id, films.title, films.release_year, films.image_path, films.rating,
+SELECT films.id, films.title, films.release_year, films.image_path, films.rating, films.imdb_id,
     directors.id AS director_id, directors.name AS director_name
 FROM films
 JOIN directors ON films.director_id = directors.id
@@ -45,6 +69,7 @@ type GetFilmRow struct {
 	ReleaseYear  int16
 	ImagePath    *string
 	Rating       float64
+	ImdbID       *string
 	DirectorID   int32
 	DirectorName string
 }
@@ -58,6 +83,7 @@ func (q *Queries) GetFilm(ctx context.Context, id int32) (GetFilmRow, error) {
 		&i.ReleaseYear,
 		&i.ImagePath,
 		&i.Rating,
+		&i.ImdbID,
 		&i.DirectorID,
 		&i.DirectorName,
 	)
@@ -65,7 +91,7 @@ func (q *Queries) GetFilm(ctx context.Context, id int32) (GetFilmRow, error) {
 }
 
 const getRandomFilm = `-- name: GetRandomFilm :one
-SELECT films.id, films.title, films.release_year, films.image_path, films.rating,
+SELECT films.id, films.title, films.release_year, films.image_path, films.rating, films.imdb_id,
     directors.id AS director_id, directors.name AS director_name
 FROM films
 JOIN directors ON films.director_id = directors.id
@@ -78,6 +104,7 @@ type GetRandomFilmRow struct {
 	ReleaseYear  int16
 	ImagePath    *string
 	Rating       float64
+	ImdbID       *string
 	DirectorID   int32
 	DirectorName string
 }
@@ -91,6 +118,7 @@ func (q *Queries) GetRandomFilm(ctx context.Context) (GetRandomFilmRow, error) {
 		&i.ReleaseYear,
 		&i.ImagePath,
 		&i.Rating,
+		&i.ImdbID,
 		&i.DirectorID,
 		&i.DirectorName,
 	)
@@ -142,17 +170,17 @@ func (q *Queries) InsertDirector(ctx context.Context, arg InsertDirectorParams) 
 const insertFilm = `-- name: InsertFilm :one
 WITH new_director AS (
     INSERT INTO directors (id, name)
-    VALUES ($6, $7)
+    VALUES ($7, $8)
     ON CONFLICT DO NOTHING
     RETURNING id AS director_id
 ),
 director AS (
     SELECT director_id FROM new_director
     UNION ALL
-    SELECT id AS director_id FROM directors WHERE id = $6
+    SELECT id AS director_id FROM directors WHERE id = $7
 )
-INSERT INTO films (id, title, release_year, director_id, image_path, rating)
-SELECT $1, $2, $3, director_id, $4, $5 FROM director
+INSERT INTO films (id, title, release_year, director_id, image_path, rating, imdb_id)
+SELECT $1, $2, $3, director_id, $4, $5, $6 FROM director
 RETURNING id
 `
 
@@ -162,6 +190,7 @@ type InsertFilmParams struct {
 	ReleaseYear  int16
 	ImagePath    *string
 	Rating       float64
+	ImdbID       *string
 	DirectorID   int32
 	DirectorName string
 }
@@ -173,6 +202,7 @@ func (q *Queries) InsertFilm(ctx context.Context, arg InsertFilmParams) (int32, 
 		arg.ReleaseYear,
 		arg.ImagePath,
 		arg.Rating,
+		arg.ImdbID,
 		arg.DirectorID,
 		arg.DirectorName,
 	)
@@ -182,7 +212,7 @@ func (q *Queries) InsertFilm(ctx context.Context, arg InsertFilmParams) (int32, 
 }
 
 const listFilmsByRating = `-- name: ListFilmsByRating :many
-SELECT films.id, films.title, films.release_year, films.image_path, films.rating,
+SELECT films.id, films.title, films.release_year, films.image_path, films.rating, films.imdb_id,
     directors.id AS director_id, directors.name AS director_name
 FROM films
 JOIN directors ON films.director_id = directors.id
@@ -206,6 +236,7 @@ type ListFilmsByRatingRow struct {
 	ReleaseYear  int16
 	ImagePath    *string
 	Rating       float64
+	ImdbID       *string
 	DirectorID   int32
 	DirectorName string
 }
@@ -225,6 +256,7 @@ func (q *Queries) ListFilmsByRating(ctx context.Context, arg ListFilmsByRatingPa
 			&i.ReleaseYear,
 			&i.ImagePath,
 			&i.Rating,
+			&i.ImdbID,
 			&i.DirectorID,
 			&i.DirectorName,
 		); err != nil {
@@ -239,7 +271,7 @@ func (q *Queries) ListFilmsByRating(ctx context.Context, arg ListFilmsByRatingPa
 }
 
 const searchFilmsByTitle = `-- name: SearchFilmsByTitle :many
-SELECT films.id, films.title, films.release_year, films.image_path, films.rating,
+SELECT films.id, films.title, films.release_year, films.image_path, films.rating, films.imdb_id,
     directors.id AS director_id, directors.name AS director_name
 FROM films
 JOIN directors ON films.director_id = directors.id
@@ -252,6 +284,7 @@ type SearchFilmsByTitleRow struct {
 	ReleaseYear  int16
 	ImagePath    *string
 	Rating       float64
+	ImdbID       *string
 	DirectorID   int32
 	DirectorName string
 }
@@ -271,6 +304,7 @@ func (q *Queries) SearchFilmsByTitle(ctx context.Context, search string) ([]Sear
 			&i.ReleaseYear,
 			&i.ImagePath,
 			&i.Rating,
+			&i.ImdbID,
 			&i.DirectorID,
 			&i.DirectorName,
 		); err != nil {
@@ -282,6 +316,20 @@ func (q *Queries) SearchFilmsByTitle(ctx context.Context, search string) ([]Sear
 		return nil, err
 	}
 	return items, nil
+}
+
+const updateFilmImdb = `-- name: UpdateFilmImdb :exec
+UPDATE films SET imdb_id = $1 WHERE id = $2
+`
+
+type UpdateFilmImdbParams struct {
+	ImdbID *string
+	ID     int32
+}
+
+func (q *Queries) UpdateFilmImdb(ctx context.Context, arg UpdateFilmImdbParams) error {
+	_, err := q.db.Exec(ctx, updateFilmImdb, arg.ImdbID, arg.ID)
+	return err
 }
 
 const updateFilmRating = `-- name: UpdateFilmRating :execrows

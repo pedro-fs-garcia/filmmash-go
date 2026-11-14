@@ -969,6 +969,33 @@
             border-color: var(--gold-bright);
         }
 
+        .ff-game-nav { display: flex; flex-wrap: wrap; gap: 1rem; justify-content: center; }
+        .ff-game-nav a, .ff-game-nav a:visited, .ff-attribution a, .ff-attribution a:visited {
+            color: var(--ivory); text-underline-offset: 0.2em;
+        }
+        .ff-game-nav a:hover, .ff-attribution a:hover { color: var(--gold-bright); }
+        .ff-take { color: var(--gold); text-align: center; line-height: 1.6; }
+        .ff-take-feedback { color: var(--ivory); line-height: 1.6; }
+        .ff-option:disabled { cursor: default; }
+        .ff-option.ff-option-wrong { opacity: 0.65; border-style: dashed; }
+        .ff-option { min-height: 48px; }
+        .ff-attribution, .ff-muted { color: var(--ivory-dim); font-size: 0.8rem; line-height: 1.7; }
+        .ff-attribution { text-align: center; margin-top: 2rem; }
+        .ff-outcomes { list-style: none; padding: 0; text-align: left; }
+        .ff-outcomes li { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 0.5rem; padding: 1rem 0; border-bottom: 1px solid var(--line); }
+        .ff-outcomes li > span:last-child { flex-basis: 100%; color: var(--ivory-dim); }
+        .ff-table { width: 100%; border-collapse: collapse; }
+        .ff-table td, .ff-table th { padding: 0.8rem 0.5rem; border-bottom: 1px solid var(--line); text-align: left; }
+        .ff-table th { color: var(--gold); }
+        .ff-archive, .ff-curation-grid { display: grid; grid-template-columns: repeat(auto-fit,minmax(min(100%,280px),1fr)); gap: 1rem; }
+        .ff-archive-day { padding: 1.5rem; border: 1px solid var(--line); background: var(--noir-panel); }
+        .ff-admin-form { display: flex; flex-direction: column; gap: 1rem; margin: 1.5rem 0; }
+        .ff-admin-form label { display: flex; flex-wrap: wrap; gap: 0.75rem; align-items: center; }
+        .ff-admin-form input, .ff-admin-form select { font: inherit; padding: 0.75rem; background: var(--noir-panel); color: var(--ivory); border: 1px solid var(--line); max-width: 100%; }
+        .ff-curation-frame { margin: 0; padding: 0.75rem; border: 1px solid var(--line); }
+        .ff-curation-frame img { width: 100%; aspect-ratio: 16/9; object-fit: contain; }
+        .ff-curation-frame figcaption { margin-top: 0.75rem; }
+        .ff-results-link { font: inherit; cursor: pointer; }
         .ff-results {
             max-width: 720px;
             margin: clamp(1.5rem, 5vh, 3.5rem) auto;
@@ -1560,7 +1587,7 @@
         <p class="nav-heading">Menu</p>
 
         <div class="side-nav-links">
-            <a href="/ui/freeze_frame" data-nav="/ui/freeze_frame">
+            <a href="/ui/freezeframe/" data-nav="/ui/freezeframe">
                 <svg class="nav-icon icon-play" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                     stroke-width="1.6" aria-hidden="true">
                     <circle cx="12" cy="12" r="9"/>
@@ -1675,6 +1702,37 @@
     </main>
 
     <div id="modal"></div>
+
+    <script>
+        (function () {
+            function countdowns() {
+                document.querySelectorAll('[data-ff-countdown]').forEach(function (el) {
+                    var seconds = Math.max(0, Number(el.dataset.ffCountdown) - Math.floor(Date.now() / 1000));
+                    var hours = Math.floor(seconds / 3600);
+                    var minutes = Math.floor((seconds % 3600) / 60);
+                    el.textContent = seconds ? hours + 'h ' + minutes + 'm ' + (seconds % 60) + 's' : 'Available now';
+                });
+            }
+            countdowns(); setInterval(countdowns, 1000);
+            document.addEventListener('htmx:afterSwap', countdowns);
+            document.addEventListener('click', function (event) {
+                if (!event.target.closest('[data-preview-frames]')) return;
+                var grid = document.querySelector('.ff-curation-grid');
+                if (!grid) return;
+                Array.from(grid.children).sort(function (a, b) {
+                    return (Number(a.querySelector('select').value) || 99) - (Number(b.querySelector('select').value) || 99);
+                }).forEach(function (frame) { grid.appendChild(frame); });
+                grid.scrollIntoView({behavior: 'smooth', block: 'start'});
+            });
+            document.addEventListener('htmx:responseError', function (event) {
+                if (!event.detail.elt.closest('#ff-round')) return;
+                var round = document.getElementById('ff-round');
+                var message = round.querySelector('[data-ff-error]');
+                if (!message) { message = document.createElement('p'); message.dataset.ffError = ''; message.setAttribute('role', 'alert'); round.prepend(message); }
+                message.textContent = 'Your take could not be saved. Refresh to resume your game.';
+            });
+        })();
+    </script>
 
     <footer>
         <p>&copy; 2026</p>

@@ -41,6 +41,8 @@ All colors are CSS custom properties declared on `:root` in `base.html`. **Never
 
 ## 3. Typography
 
+Freeze Frame play uses one current still, five ivory options, a gold take/score label, and explicit incorrect text with a dashed border for used choices. Account archive cards and admin curation panels use the same dark panel and gold hairline tokens. The final score has a prominent WhatsApp action; supporting navigation uses explicit ivory link colors for both normal and visited states. Frame curation shows previews at 16:9 and labels difficulty from hardest to easiest.
+
 Freeze Frame results use a centered framed panel with a large ivory score, gold section labels, and muted ivory supporting text. The Explore films action uses an ivory outlined link, including its visited state, with gold hover and keyboard focus styling. These rules live in the `.ff-results` section of `base.html` so they also apply when results arrive through an htmx swap.
 
 **One typeface: [Courier Prime](https://fonts.google.com/specimen/Courier+Prime)** (Google Fonts), fallback `monospace`. It is the screenplay/typewriter voice of the whole app — headings, body, buttons, tables, everything. Do not introduce a second typeface.

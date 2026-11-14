@@ -26,10 +26,11 @@ func (c *Client) GetPopulars(page int16) ([]Movie, error) {
 	movies := result.Results
 
 	for i := range movies {
-		dir, _ := c.GetDirector(movies[i].Id)
-		if dir != nil {
-			movies[i].Director = *dir
+		detail, err := c.GetFilm(int32(movies[i].Id))
+		if err != nil {
+			return nil, err
 		}
+		movies[i] = detail
 	}
 
 	return movies, nil
@@ -80,10 +81,11 @@ func (c *Client) GetTopRated(page int16) ([]Movie, error) {
 	movies := result.Results
 
 	for i := range movies {
-		dir, _ := c.GetDirector(movies[i].Id)
-		if dir != nil {
-			movies[i].Director = *dir
+		detail, err := c.GetFilm(int32(movies[i].Id))
+		if err != nil {
+			return nil, err
 		}
+		movies[i] = detail
 	}
 	return movies, nil
 }
@@ -116,6 +118,7 @@ func (c *Client) SearchFilm(params *SearchFilmParams) (*TmdbStandardResponse, er
 }
 
 type FilmDetailResponse struct {
+	ImdbId      string          `json:"imdb_id"`
 	Id          int             `json:"id"`
 	Title       string          `json:"title"`
 	ReleaseDate string          `json:"release_date"`
@@ -148,6 +151,7 @@ func (c *Client) GetFilm(filmId int32) (Movie, error) {
 	}
 
 	return Movie{
+		ImdbId:      result.ImdbId,
 		Id:          result.Id,
 		Title:       result.Title,
 		ReleaseDate: result.ReleaseDate,

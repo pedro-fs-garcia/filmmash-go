@@ -13,6 +13,7 @@ type Director struct {
 }
 
 type Film struct {
+	ImdbId      string   `json:"imdb_id"`
 	Id          int      `json:"id"`
 	Title       string   `json:"title"`
 	Year        int      `json:"year"`
@@ -83,9 +84,10 @@ func TMDBMovieToFilm(m tmdb.Movie) (Film, error) {
 		return Film{}, err
 	}
 	return Film{
-		Id:    m.Id,
-		Title: m.Title,
-		Year:  release_year,
+		ImdbId: m.ImdbId,
+		Id:     m.Id,
+		Title:  m.Title,
+		Year:   release_year,
 		Director: Director{
 			Id:   m.Director.Id,
 			Name: m.Director.Name,

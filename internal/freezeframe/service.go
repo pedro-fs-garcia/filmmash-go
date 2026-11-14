@@ -38,6 +38,17 @@ func (s *Service) SeedGame(ctx context.Context, g *Game) error {
 
 	seedErr = s.txManager.ExecTx(ctx, func(txCtx context.Context) error {
 		var err error
+		query := database.ExtractTx(txCtx, s.repo.pool)
+		if _, err = query.Exec(txCtx, `SELECT pg_advisory_xact_lock($1)`, gameDay(g.ValidAt).Unix()/86400); err != nil {
+			return err
+		}
+		ids, err := s.repo.GetGameIDsByDate(txCtx, g.ValidAt)
+		if err != nil {
+			return err
+		}
+		if len(ids) > 0 {
+			return database.ErrDuplicateEntry
+		}
 		gameId, err = s.repo.InsertGame(txCtx, *g)
 		if err != nil {
 			return err
@@ -112,7 +123,7 @@ func (s *Service) GetGame(ctx context.Context, gameID int32) (Game, error) {
 func (s *Service) GetTodaysGame(ctx context.Context) (Game, error) {
 	cachedGame := s.gameCache.Read()
 
-	now := time.Now()
+	now := time.Now().UTC()
 	year, month, day := now.Date()
 	if cachedGame != nil {
 		cachedYear, cachedMonth, cachedDay := cachedGame.ValidAt.Date()

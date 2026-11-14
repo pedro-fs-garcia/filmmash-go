@@ -45,19 +45,35 @@ type Film struct {
 	DuelCount   int32
 	CreatedAt   time.Time
 	UpdatedAt   time.Time
+	ImdbID      *string
 }
 
 type Frame struct {
-	ID        int32
-	FilmID    int32
-	ImagePath string
-	CreatedAt time.Time
+	ID           int32
+	FilmID       int32
+	ImagePath    string
+	CreatedAt    time.Time
+	CuratedOrder *int16
+	Approved     bool
+}
+
+type FreezeFramePlay struct {
+	ID         uuid.UUID
+	GameID     int32
+	PlayerKey  string
+	UserID     *uuid.UUID
+	Progress   []byte
+	Score      int32
+	Finished   bool
+	StartedAt  time.Time
+	FinishedAt *time.Time
 }
 
 type Game struct {
 	ID        int32
 	ValidAt   pgtype.Date
 	CreatedAt time.Time
+	Active    bool
 }
 
 type Reel struct {
